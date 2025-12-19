@@ -3,6 +3,7 @@ import logger from '../config/logger.js';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS, JOB_STATUS } from '../config/constants.js';
+import { sanitizeJobStatus, sanitizeDepartment, sanitizeLocation } from '../utils/querySanitizer.js';
 
 class JobService {
   /**
@@ -17,12 +18,16 @@ class JobService {
     try {
       const query = {};
       
-      if (filters.status) {
-        query.status = filters.status;
+      // Sanitize status filter to prevent injection
+      const sanitizedStatus = sanitizeJobStatus(filters.status);
+      if (sanitizedStatus) {
+        query.status = sanitizedStatus;
       }
       
-      if (filters.department) {
-        query.department = filters.department;
+      // Sanitize department filter to prevent injection
+      const sanitizedDepartment = sanitizeDepartment(filters.department);
+      if (sanitizedDepartment) {
+        query.department = sanitizedDepartment;
       }
 
       const jobs = await Job.find(query).sort({ createdAt: -1 });
