@@ -7,6 +7,7 @@ import logger from '../config/logger.js';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
 import ApiError from '../utils/ApiError.js';
 import { APPLICATION_STATUS, JOB_STATUS, HTTP_STATUS } from '../config/constants.js';
+import { sanitizeObjectId } from '../utils/querySanitizer.js';
 
 class ApplicationService {
   /**
@@ -18,8 +19,20 @@ class ApplicationService {
     logNested(req, 'Creating application', { jobId });
 
     try {
+      // Sanitize ObjectIds to prevent injection
+      const sanitizedJobId = sanitizeObjectId(jobId);
+      const sanitizedCandidateId = sanitizeObjectId(candidateId);
+      
+      if (!sanitizedJobId) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid job ID');
+      }
+      
+      if (!sanitizedCandidateId) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid candidate ID');
+      }
+      
       // Validate job exists and is active
-      const job = await Job.findById(jobId);
+      const job = await Job.findById(sanitizedJobId);
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
       }
@@ -28,7 +41,7 @@ class ApplicationService {
       }
 
       // Check for duplicate application
-      const existingApp = await Application.findOne({ userId: candidateId, jobId });
+      const existingApp = await Application.findOne({ userId: sanitizedCandidateId, jobId: sanitizedJobId });
       if (existingApp) {
         if (existingApp.status === APPLICATION_STATUS.WITHDRAWN) {
           logger.info(`Reactivating withdrawn application`, { applicationId: existingApp._id });
@@ -42,7 +55,7 @@ class ApplicationService {
       }
 
       // Get candidate details
-      const user = await User.findById(candidateId);
+      const user = await User.findById(sanitizedCandidateId);
       if (!user) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
       }
@@ -53,8 +66,8 @@ class ApplicationService {
 
       // Create application
       const application = await Application.create({
-        userId: candidateId,
-        jobId,
+        userId: sanitizedCandidateId,
+        jobId: sanitizedJobId,
         candidateInfo: {
           name: user.fullName,
           email: user.email
@@ -100,9 +113,17 @@ class ApplicationService {
     logger.info(`Withdrawing application`, { applicationId, candidateId });
 
     try {
+      // Sanitize ObjectIds
+      const sanitizedAppId = sanitizeObjectId(applicationId);
+      const sanitizedCandidateId = sanitizeObjectId(candidateId);
+      
+      if (!sanitizedAppId || !sanitizedCandidateId) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid application or candidate ID');
+      }
+      
       const application = await Application.findOne({ 
-        _id: applicationId, 
-        userId: candidateId 
+        _id: sanitizedAppId, 
+        userId: sanitizedCandidateId 
       });
 
       if (!application) {
@@ -120,7 +141,7 @@ class ApplicationService {
       }
 
       // Delete application
-      await Application.findByIdAndDelete(applicationId);
+      await Application.findByIdAndDelete(sanitizedAppId);
 
       logger.info(`Application withdrawn successfully`, { applicationId });
     } catch (error) {
@@ -142,7 +163,13 @@ class ApplicationService {
     logNested(req, 'Fetching applications for candidate', { candidateId });
 
     try {
-      const applications = await Application.find({ userId: candidateId })
+      // Sanitize candidate ID
+      const sanitizedCandidateId = sanitizeObjectId(candidateId);
+      if (!sanitizedCandidateId) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid candidate ID');
+      }
+      
+      const applications = await Application.find({ userId: sanitizedCandidateId })
         .populate('jobId')
         .sort({ appliedAt: -1 });
 
@@ -166,7 +193,13 @@ class ApplicationService {
     logNested(req, 'Fetching applications for job', { jobId });
 
     try {
-      const applications = await Application.find({ jobId })
+      // Sanitize job ID
+      const sanitizedJobId = sanitizeObjectId(jobId);
+      if (!sanitizedJobId) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid job ID');
+      }
+      
+      const applications = await Application.find({ jobId: sanitizedJobId })
         .populate('userId', 'fullName email')
         .select('candidateInfo atsScore status appliedAt resume.fileName resume.fileSize userId')
         .sort({ 'atsScore.score': -1, appliedAt: -1 });
@@ -204,7 +237,13 @@ class ApplicationService {
     logger.info(`Generating resume URL`, { applicationId });
 
     try {
-      const application = await Application.findById(applicationId);
+      // Sanitize application ID
+      const sanitizedAppId = sanitizeObjectId(applicationId);
+      if (!sanitizedAppId) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid application ID');
+      }
+      
+      const application = await Application.findById(sanitizedAppId);
 
       if (!application) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
@@ -237,9 +276,17 @@ class ApplicationService {
     logger.info(`Checking application status`, { candidateId, jobId });
 
     try {
+      // Sanitize IDs
+      const sanitizedCandidateId = sanitizeObjectId(candidateId);
+      const sanitizedJobId = sanitizeObjectId(jobId);
+      
+      if (!sanitizedCandidateId || !sanitizedJobId) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid candidate or job ID');
+      }
+      
       const application = await Application.findOne({ 
-        userId: candidateId, 
-        jobId 
+        userId: sanitizedCandidateId, 
+        jobId: sanitizedJobId 
       });
 
       if (!application) {
