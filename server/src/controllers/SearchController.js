@@ -6,6 +6,15 @@ import {
   createPartialMatchRegex, 
   normalizeQuery 
 } from '../utils/searchUtils.js';
+import { 
+  sanitizeSearchQuery, 
+  sanitizeJobStatus, 
+  sanitizeDepartment, 
+  sanitizeLocation,
+  sanitizeNumericFilter,
+  sanitizeObjectId,
+  sanitizePrefix
+} from '../utils/querySanitizer.js';
 
 /**
  * SearchController class handles all search-related operations
@@ -22,17 +31,31 @@ class SearchController {
       
       const searchCriteria = {};
       
-      if (query && query.trim() !== '') {
-        searchCriteria.$text = { $search: query };
+      // Sanitize search query
+      const sanitizedQuery = sanitizeSearchQuery(query);
+      if (sanitizedQuery) {
+        searchCriteria.$text = { $search: sanitizedQuery };
       }
       
-      if (department) searchCriteria.department = department;
-      if (location) searchCriteria.location = location;
-      if (status) searchCriteria.status = status;
+      // Sanitize filters
+      const sanitizedDepartment = sanitizeDepartment(department);
+      if (sanitizedDepartment) {
+        searchCriteria.department = sanitizedDepartment;
+      }
+      
+      const sanitizedLocation = sanitizeLocation(location);
+      if (sanitizedLocation) {
+        searchCriteria.location = sanitizedLocation;
+      }
+      
+      const sanitizedStatus = sanitizeJobStatus(status);
+      if (sanitizedStatus) {
+        searchCriteria.status = sanitizedStatus;
+      }
       
       let jobs;
       
-      if (query && query.trim() !== '') {
+      if (sanitizedQuery) {
         jobs = await Job.find(
           searchCriteria,
           { score: { $meta: "textScore" } }
@@ -63,21 +86,30 @@ class SearchController {
       
       const searchCriteria = {};
       
-      if (query && query.trim() !== '') {
-        searchCriteria.$text = { $search: query };
+      // Sanitize search query
+      const sanitizedQuery = sanitizeSearchQuery(query);
+      if (sanitizedQuery) {
+        searchCriteria.$text = { $search: sanitizedQuery };
       }
       
-      if (jobId) searchCriteria.jobId = jobId;
+      // Sanitize job ID
+      const sanitizedJobId = sanitizeObjectId(jobId);
+      if (sanitizedJobId) {
+        searchCriteria.jobId = sanitizedJobId;
+      }
       
+      // Sanitize score filters
       if (minScore !== undefined || maxScore !== undefined) {
         searchCriteria.atsScore = {};
-        if (minScore !== undefined) searchCriteria.atsScore.$gte = parseInt(minScore);
-        if (maxScore !== undefined) searchCriteria.atsScore.$lte = parseInt(maxScore);
+        const sanitizedMin = sanitizeNumericFilter(minScore, 0, 100);
+        const sanitizedMax = sanitizeNumericFilter(maxScore, 0, 100);
+        if (sanitizedMin !== null) searchCriteria.atsScore.$gte = sanitizedMin;
+        if (sanitizedMax !== null) searchCriteria.atsScore.$lte = sanitizedMax;
       }
       
       let candidates;
       
-      if (query && query.trim() !== '') {
+      if (sanitizedQuery) {
         candidates = await Candidate.find(
           searchCriteria,
           { score: { $meta: "textScore" } }
@@ -106,11 +138,13 @@ class SearchController {
     try {
       const { query } = req.query;
       
-      if (!query || query.trim() === '') {
+      // Sanitize search query
+      const sanitizedQuery = sanitizeSearchQuery(query);
+      if (!sanitizedQuery) {
         return res.json({ jobs: [], candidates: [] });
       }
       
-      const normalizedQuery = normalizeQuery(query);
+      const normalizedQuery = normalizeQuery(sanitizedQuery);
       const jobTitleQuery = isLikelyJobTitle(normalizedQuery);
       
       const results = {
@@ -121,7 +155,7 @@ class SearchController {
       // JOBS SEARCH
       const exactJobMatches = await Job.find({ 
         $or: [
-          { title: createExactMatchRegex(query) },
+          { title: createExactMatchRegex(sanitizedQuery) },
           { searchableTitle: normalizedQuery }
         ]
       }).limit(5);
@@ -130,13 +164,13 @@ class SearchController {
         results.jobs = exactJobMatches;
       } else {
         const partialTitleMatches = await Job.find({
-          title: createPartialMatchRegex(query)
+          title: createPartialMatchRegex(sanitizedQuery)
         }).limit(8);
         
         if (partialTitleMatches.length > 0) {
           results.jobs = partialTitleMatches;
         } else {
-          const jobSearchCriteria = { $text: { $search: query } };
+          const jobSearchCriteria = { $text: { $search: sanitizedQuery } };
           
           if (jobTitleQuery) {
             const jobTextMatches = await Job.find(
@@ -145,7 +179,7 @@ class SearchController {
                 score: { $meta: "textScore" },
                 titleMatch: {
                   $cond: {
-                    if: { $regexMatch: { input: "$title", regex: createPartialMatchRegex(query) } },
+                    if: { $regexMatch: { input: "$title", regex: createPartialMatchRegex(sanitizedQuery) } },
                     then: 10,
                     else: 0
                   }
@@ -173,7 +207,7 @@ class SearchController {
       if (!jobTitleQuery) {
         const exactNameMatches = await Candidate.find({
           $or: [
-            { name: createExactMatchRegex(query) },
+            { name: createExactMatchRegex(sanitizedQuery) },
             { searchableName: normalizedQuery }
           ]
         }).limit(5);
@@ -182,14 +216,14 @@ class SearchController {
           results.candidates = exactNameMatches;
         } else {
           const partialNameMatches = await Candidate.find({
-            name: createPartialMatchRegex(query)
+            name: createPartialMatchRegex(sanitizedQuery)
           }).limit(8);
           
           if (partialNameMatches.length > 0) {
             results.candidates = partialNameMatches;
           } else {
             results.candidates = await Candidate.find(
-              { $text: { $search: query } },
+              { $text: { $search: sanitizedQuery } },
               { score: { $meta: "textScore" } }
             )
             .sort({ score: { $meta: "textScore" } })
@@ -198,7 +232,7 @@ class SearchController {
         }
       } else {
         results.candidates = await Candidate.find(
-          { $text: { $search: query } },
+          { $text: { $search: sanitizedQuery } },
           { score: { $meta: "textScore" } }
         )
         .sort({ score: { $meta: "textScore" } })
@@ -228,13 +262,15 @@ class SearchController {
     try {
       const { prefix } = req.query;
       
-      if (!prefix || prefix.trim() === '') {
+      // Sanitize prefix to prevent regex injection
+      const sanitizedPrefix = sanitizePrefix(prefix);
+      if (!sanitizedPrefix) {
         return res.json([]);
       }
       
-      const titleRegex = new RegExp(`^${prefix}`, 'i');
-      const departmentRegex = new RegExp(`^${prefix}`, 'i');
-      const locationRegex = new RegExp(`^${prefix}`, 'i');
+      const titleRegex = new RegExp(`^${sanitizedPrefix}`, 'i');
+      const departmentRegex = new RegExp(`^${sanitizedPrefix}`, 'i');
+      const locationRegex = new RegExp(`^${sanitizedPrefix}`, 'i');
       
       const jobs = await Job.find({
         $or: [
@@ -248,20 +284,20 @@ class SearchController {
       const suggestions = new Set();
       
       jobs.forEach(job => {
-        if (job.title.toLowerCase().startsWith(prefix.toLowerCase())) {
+        if (job.title.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
           suggestions.add(job.title);
         }
         
-        if (job.department.toLowerCase().startsWith(prefix.toLowerCase())) {
+        if (job.department.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
           suggestions.add(job.department);
         }
         
-        if (job.location.toLowerCase().startsWith(prefix.toLowerCase())) {
+        if (job.location.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
           suggestions.add(job.location);
         }
         
         job.keywords.forEach(keyword => {
-          if (keyword.toLowerCase().startsWith(prefix.toLowerCase())) {
+          if (keyword.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
             suggestions.add(keyword);
           }
         });
@@ -283,20 +319,24 @@ class SearchController {
     try {
       const { prefix, jobId } = req.query;
       
-      if (!prefix || prefix.trim() === '') {
+      // Sanitize prefix to prevent regex injection
+      const sanitizedPrefix = sanitizePrefix(prefix);
+      if (!sanitizedPrefix) {
         return res.json([]);
       }
       
       const searchCriteria = {
         $or: [
-          { name: new RegExp(`^${prefix}`, 'i') },
-          { email: new RegExp(`^${prefix}`, 'i') },
-          { skills: new RegExp(`^${prefix}`, 'i') }
+          { name: new RegExp(`^${sanitizedPrefix}`, 'i') },
+          { email: new RegExp(`^${sanitizedPrefix}`, 'i') },
+          { skills: new RegExp(`^${sanitizedPrefix}`, 'i') }
         ]
       };
       
-      if (jobId) {
-        searchCriteria.jobId = jobId;
+      // Sanitize job ID
+      const sanitizedJobId = sanitizeObjectId(jobId);
+      if (sanitizedJobId) {
+        searchCriteria.jobId = sanitizedJobId;
       }
       
       const candidates = await Candidate.find(searchCriteria).limit(10);
@@ -304,16 +344,16 @@ class SearchController {
       const suggestions = new Set();
       
       candidates.forEach(candidate => {
-        if (candidate.name.toLowerCase().startsWith(prefix.toLowerCase())) {
+        if (candidate.name.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
           suggestions.add(candidate.name);
         }
         
-        if (candidate.email.toLowerCase().startsWith(prefix.toLowerCase())) {
+        if (candidate.email.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
           suggestions.add(candidate.email);
         }
         
         candidate.skills.forEach(skill => {
-          if (skill.toLowerCase().startsWith(prefix.toLowerCase())) {
+          if (skill.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
             suggestions.add(skill);
           }
         });
