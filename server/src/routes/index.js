@@ -7,8 +7,17 @@ import searchRoutes from './searchRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import analyticsRoutes from './analyticsRoutes.js';
 import profileRoutes from './profileRoutes.js';
+import { getCsrfToken } from '../middleware/csrf.js';
 
 const router = express.Router();
+
+// CSRF token endpoint - must be before CSRF protection
+router.get('/csrf-token', getCsrfToken, (req, res) => {
+  res.json({
+    success: true,
+    csrfToken: req.csrfToken()
+  });
+});
 
 // Mount all routes
 router.use('/auth', authRoutes);
