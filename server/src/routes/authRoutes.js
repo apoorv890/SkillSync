@@ -9,6 +9,8 @@ import {
   validateOTPVerification 
 } from '../middleware/validation.js';
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js';
+import TokenService from '../services/TokenService.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -44,16 +46,17 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
 
     await user.save();
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      getJWTSecret(),
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    // Generate token pair (access + refresh)
+    const { accessToken, refreshToken } = TokenService.generateTokenPair({
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    });
 
     res.status(201).json({
       message: 'User registered successfully',
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -85,16 +88,17 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      getJWTSecret(),
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    // Generate token pair (access + refresh)
+    const { accessToken, refreshToken } = TokenService.generateTokenPair({
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    });
 
     res.status(200).json({
       message: 'Login successful',
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -128,8 +132,26 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// Logout - Blacklist token
+router.post('/logout', authenticate, async (req, res) => {
+  try {
+    const token = TokenService.extractTokenFromHeader(req.headers.authorization);
+    
+    if (token) {
+      await TokenService.blacklistToken(token, req.user.userId, 'logout');
+    }
+
+    res.status(200).json({
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Server error during logout' });
+  }
+});
+
 // Get current user (protected route)
-router.get('/me', verifyToken, async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
