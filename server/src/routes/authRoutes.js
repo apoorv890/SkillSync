@@ -227,6 +227,28 @@ router.post('/verify-otp', validateOTPVerification, async (req, res) => {
   }
 });
 
+// Refresh access token
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token is required' });
+    }
+
+    // Refresh the access token
+    const { accessToken, refreshToken: newRefreshToken } = await TokenService.refreshAccessToken(refreshToken);
+
+    res.status(200).json({
+      accessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(401).json({ error: error.message || 'Token refresh failed' });
+  }
+});
+
 // Reset Password
 router.post('/reset-password', passwordResetLimiter, validatePasswordReset, async (req, res) => {
   try {
