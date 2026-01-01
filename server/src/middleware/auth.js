@@ -1,25 +1,30 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-
-// Lazy JWT_SECRET getter - validates when used, not at module load
-const getJWTSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
-  }
-  return secret;
-};
+import TokenService from '../services/TokenService.js';
 
 // Middleware to verify JWT token
 export const authenticate = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const token = TokenService.extractTokenFromHeader(req.header('Authorization'));
     
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const decoded = jwt.verify(token, getJWTSecret());
+    // Check if token is blacklisted
+    const isBlacklisted = await TokenService.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      return res.status(401).json({ error: 'Token has been revoked' });
+    }
+
+    // Verify token
+    const decoded = TokenService.verifyToken(token);
+    
+    // Ensure it's an access token (not refresh token)
+    if (decoded.type && decoded.type !== 'access') {
+      return res.status(401).json({ error: 'Invalid token type' });
+    }
+
     const user = await User.findById(decoded.userId);
 
     if (!user) {
