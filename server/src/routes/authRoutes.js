@@ -11,6 +11,7 @@ import {
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js';
 import TokenService from '../services/TokenService.js';
 import { authenticate } from '../middleware/auth.js';
+import { timingSafeOtpCompare } from '../utils/timingSafe.js';
 
 const router = express.Router();
 
@@ -170,29 +171,32 @@ router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Always perform the same operations regardless of user existence
+    // This prevents account enumeration via timing attacks
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found with this email' });
-    }
-
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Hash OTP before storing (security best practice)
+    // Generate OTP even if user doesn't exist (to prevent timing differences)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
     
-    // Set hashed OTP and expiration (10 minutes)
-    user.resetPasswordOTP = hashedOTP;
-    user.resetPasswordOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-    await user.save();
-
-    // TODO: Send OTP via email (for now, log it to console)
-    console.log(`OTP for ${email}: ${otp}`);
+    // Only save if user exists, but always hash to maintain constant time
+    if (user) {
+      user.resetPasswordOTP = hashedOTP;
+      user.resetPasswordOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      await user.save();
+      
+      // TODO: Send OTP via email (for now, log it to console)
+      console.log(`OTP for ${email}: ${otp}`);
+    } else {
+      // Perform dummy hash operation to maintain constant time
+      crypto.createHash('sha256').update(otp).digest('hex');
+    }
     
+    // Always return the same response to prevent account enumeration
     res.status(200).json({ 
-      message: 'OTP sent to your email',
+      message: 'If an account exists with this email, an OTP has been sent',
       // Remove this in production - only for testing
-      otp: process.env.NODE_ENV === 'development' ? otp : undefined
+      otp: process.env.NODE_ENV === 'development' && user ? otp : undefined
     });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -206,13 +210,16 @@ router.post('/verify-otp', validateOTPVerification, async (req, res) => {
     const { email, otp } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    
+    // Use timing-safe comparison to prevent timing attacks
+    if (!user || !user.resetPasswordOTP) {
+      // Still perform hash operation to prevent timing leak
+      timingSafeOtpCompare(otp, crypto.createHash('sha256').update('dummy').digest('hex'));
+      return res.status(400).json({ message: 'Invalid OTP' });
     }
 
-    // Hash provided OTP and compare with stored hash
-    const hashedInputOTP = crypto.createHash('sha256').update(otp).digest('hex');
-    if (user.resetPasswordOTP !== hashedInputOTP) {
+    // Use timing-safe OTP comparison
+    if (!timingSafeOtpCompare(otp, user.resetPasswordOTP)) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
@@ -255,13 +262,16 @@ router.post('/reset-password', passwordResetLimiter, validatePasswordReset, asyn
     const { email, otp, newPassword } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    
+    // Use timing-safe comparison to prevent timing attacks
+    if (!user || !user.resetPasswordOTP) {
+      // Still perform hash operation to prevent timing leak
+      timingSafeOtpCompare(otp, crypto.createHash('sha256').update('dummy').digest('hex'));
+      return res.status(400).json({ message: 'Invalid OTP' });
     }
 
-    // Verify OTP again - hash provided OTP and compare
-    const hashedInputOTP = crypto.createHash('sha256').update(otp).digest('hex');
-    if (user.resetPasswordOTP !== hashedInputOTP) {
+    // Use timing-safe OTP comparison
+    if (!timingSafeOtpCompare(otp, user.resetPasswordOTP)) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
