@@ -1,5 +1,6 @@
 import logger from '../config/logger.js';
 import chalk from 'chalk';
+import { sanitizeObject } from './safeLogger.js';
 
 /**
  * Enhanced Logger Helper - Production-ready logging with visual indicators
@@ -86,8 +87,11 @@ export const attachLogPrefix = (req, res, next) => {
 export const logCompact = (req, message, meta = {}) => {
   const indent = req?.logIndent || '    ↳ ';
   
+  // Sanitize metadata to remove sensitive fields
+  const sanitizedMeta = sanitizeObject(meta);
+  
   // Format metadata as key=value pairs
-  const metaStr = Object.entries(meta)
+  const metaStr = Object.entries(sanitizedMeta)
     .map(([k, v]) => {
       // Handle string values with quotes if they contain spaces
       const value = typeof v === 'string' && v.includes(' ') ? `"${v}"` : v;
@@ -109,8 +113,11 @@ export const logCompact = (req, message, meta = {}) => {
 export const logNested = (req, message, meta = {}) => {
   const indent = req?.logIndent || '    ↳ ';
   
+  // Sanitize metadata to remove sensitive fields
+  const sanitizedMeta = sanitizeObject(meta);
+  
   // Format metadata as key=value pairs
-  const metaStr = Object.entries(meta)
+  const metaStr = Object.entries(sanitizedMeta)
     .map(([k, v]) => {
       // Handle string values with quotes if they contain spaces
       const value = typeof v === 'string' && v.includes(' ') ? `"${v}"` : v;

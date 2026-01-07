@@ -1,5 +1,6 @@
 import logger from '../config/logger.js';
 import ApiError from '../utils/ApiError.js';
+import { sanitizeRequestBody, sanitizeQueryParams, sanitizeError } from '../utils/safeLogger.js';
 
 /**
  * Global error handling middleware
@@ -11,22 +12,23 @@ const errorHandler = (err, req, res, next) => {
   statusCode = statusCode || 500;
   message = message || 'Internal Server Error';
 
-  // Log error with context (sanitize sensitive data)
-  const sanitizedBody = req.body ? { ...req.body } : {};
-  // Remove sensitive fields from logs
-  if (sanitizedBody.password) delete sanitizedBody.password;
-  if (sanitizedBody.token) delete sanitizedBody.token;
-  if (sanitizedBody.otp) delete sanitizedBody.otp;
-  
+  // In production, hide sensitive error details
+  if (process.env.NODE_ENV === 'production' && !err.isOperational) {
+    message = 'Something went wrong!';
+    statusCode = 500;
+  }
+
+  // Log error with sanitized context
   logger.error(message, {
     statusCode,
-    stack: err.stack,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     path: req.path,
     method: req.method,
     userId: req.user?.id,
-    body: sanitizedBody,
-    query: req.query,
-    params: req.params
+    body: sanitizeRequestBody(req.body),
+    query: sanitizeQueryParams(req.query),
+    params: req.params,
+    error: sanitizeError(err)
   });
 
   // Send error response - sanitize message in production
