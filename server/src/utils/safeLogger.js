@@ -46,7 +46,7 @@ function redactValue(value) {
  * @param {number} depth - Current depth (prevents infinite recursion)
  * @returns {Object} Sanitized object
  */
-function sanitizeObject(obj, depth = 0) {
+function sanitizeObjectInternal(obj, depth = 0) {
   // Prevent deep recursion
   if (depth > 10) {
     return '[MAX_DEPTH]';
@@ -58,7 +58,7 @@ function sanitizeObject(obj, depth = 0) {
 
   // Handle arrays
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item, depth + 1));
+    return obj.map(item => sanitizeObjectInternal(item, depth + 1));
   }
 
   // Handle primitives
@@ -79,7 +79,7 @@ function sanitizeObject(obj, depth = 0) {
     if (isSensitive) {
       sanitized[key] = redactValue(value);
     } else if (typeof value === 'object' && value !== null) {
-      sanitized[key] = sanitizeObject(value, depth + 1);
+      sanitized[key] = sanitizeObjectInternal(value, depth + 1);
     } else {
       sanitized[key] = value;
     }
@@ -175,12 +175,12 @@ export const safeLogger = {
 };
 
 /**
- * Sanitize any object recursively
+ * Sanitize any object recursively (public export)
  * @param {any} obj - Object to sanitize
  * @returns {any} Sanitized object
  */
 export function sanitizeObject(obj) {
-  return sanitizeObject(obj, 0);
+  return sanitizeObjectInternal(obj, 0);
 }
 
 /**
