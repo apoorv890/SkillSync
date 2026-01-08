@@ -175,6 +175,15 @@ export const safeLogger = {
 };
 
 /**
+ * Sanitize any object recursively
+ * @param {any} obj - Object to sanitize
+ * @returns {any} Sanitized object
+ */
+export function sanitizeObject(obj) {
+  return sanitizeObject(obj, 0);
+}
+
+/**
  * Sanitize error object for logging
  * @param {Error} error - Error object
  * @returns {Object} Sanitized error
