@@ -11,23 +11,30 @@ const errorHandler = (err, req, res, next) => {
   statusCode = statusCode || 500;
   message = message || 'Internal Server Error';
 
-  // Log error with context
+  // Log error with context (sanitize sensitive data)
+  const sanitizedBody = req.body ? { ...req.body } : {};
+  // Remove sensitive fields from logs
+  if (sanitizedBody.password) delete sanitizedBody.password;
+  if (sanitizedBody.token) delete sanitizedBody.token;
+  if (sanitizedBody.otp) delete sanitizedBody.otp;
+  
   logger.error(message, {
     statusCode,
     stack: err.stack,
     path: req.path,
     method: req.method,
     userId: req.user?.id,
-    body: req.body,
+    body: sanitizedBody,
     query: req.query,
     params: req.params
   });
 
-  // Send error response
+  // Send error response - sanitize message in production
+  const isDevelopment = process.env.NODE_ENV === 'development';
   const response = {
     success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: isDevelopment ? message : (statusCode === 500 ? 'Internal Server Error' : message),
+    ...(isDevelopment && { stack: err.stack, details: err.message })
   };
 
   res.status(statusCode).json(response);
