@@ -57,7 +57,7 @@ router.get('/stats', authenticate, async (req, res) => {
       });
     } else {
       // Return user stats
-      const userId = req.user.id;
+      const userId = req.userId || req.user._id;
       
       const totalApplications = await Application.countDocuments({ userId });
       
