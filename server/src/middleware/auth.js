@@ -1,11 +1,14 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-// Validate JWT_SECRET is set - fail fast if missing
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
-}
+// Lazy JWT_SECRET getter - validates when used, not at module load
+const getJWTSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
+  }
+  return secret;
+};
 
 // Middleware to verify JWT token
 export const authenticate = async (req, res, next) => {
@@ -16,7 +19,7 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJWTSecret());
     const user = await User.findById(decoded.userId);
 
     if (!user) {

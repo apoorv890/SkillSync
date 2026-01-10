@@ -12,11 +12,15 @@ import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js'
 
 const router = express.Router();
 
-// Environment variables - validate required vars
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
-}
+// Environment variables - lazy validation (check when used, not at module load)
+const getJWTSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
+  }
+  return secret;
+};
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // Register a new user
@@ -43,7 +47,7 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
+      getJWTSecret(),
       { expiresIn: JWT_EXPIRES_IN }
     );
 
@@ -84,7 +88,7 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
+      getJWTSecret(),
       { expiresIn: JWT_EXPIRES_IN }
     );
 
@@ -116,7 +120,7 @@ const verifyToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJWTSecret());
     req.user = decoded;
     next();
   } catch (error) {
