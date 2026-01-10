@@ -56,9 +56,6 @@ app.use('/api', apiLimiter);
 app.use(requestLogger);
 app.use(attachLogPrefix); // Attach logPrefix to req object
 
-// Connect to MongoDB
-connectDB();
-
 // API Routes
 app.use('/api', routes);
 
