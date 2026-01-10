@@ -21,6 +21,7 @@ export const authenticate = async (req, res, next) => {
     const decoded = TokenService.verifyToken(token);
     
     // Ensure it's an access token (not refresh token)
+    // Allow tokens without type field for backward compatibility
     if (decoded.type && decoded.type !== 'access') {
       return res.status(401).json({ error: 'Invalid token type' });
     }
