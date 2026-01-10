@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import logger from './config/logger.js';
+import { validateEnv } from './config/envValidation.js';
 import requestLogger from './middleware/requestLogger.js';
 import { attachLogPrefix } from './utils/loggerHelper.js';
 import errorHandler from './middleware/errorHandler.js';
@@ -12,6 +13,9 @@ import routes from './routes/index.js';
 
 // Load environment variables
 dotenv.config();
+
+// Validate environment variables - fail fast if missing
+validateEnv();
 
 // Create Express app
 const app = express();
