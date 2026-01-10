@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User from '../models/User.js';
 import { 
   validateRegistration, 
@@ -150,8 +151,11 @@ router.post('/forgot-password', async (req, res) => {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Set OTP and expiration (10 minutes)
-    user.resetPasswordOTP = otp;
+    // Hash OTP before storing (security best practice)
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    
+    // Set hashed OTP and expiration (10 minutes)
+    user.resetPasswordOTP = hashedOTP;
     user.resetPasswordOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
@@ -179,8 +183,9 @@ router.post('/verify-otp', validateOTPVerification, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if OTP matches and is not expired
-    if (user.resetPasswordOTP !== otp) {
+    // Hash provided OTP and compare with stored hash
+    const hashedInputOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.resetPasswordOTP !== hashedInputOTP) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
@@ -205,8 +210,9 @@ router.post('/reset-password', validatePasswordReset, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Verify OTP again
-    if (user.resetPasswordOTP !== otp) {
+    // Verify OTP again - hash provided OTP and compare
+    const hashedInputOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.resetPasswordOTP !== hashedInputOTP) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
