@@ -1,7 +1,11 @@
+// Load environment variables FIRST - before any other imports that might need them
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Now import everything else
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import logger from './config/logger.js';
 import { validateEnv } from './config/envValidation.js';
@@ -10,9 +14,6 @@ import { attachLogPrefix } from './utils/loggerHelper.js';
 import errorHandler from './middleware/errorHandler.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import routes from './routes/index.js';
-
-// Load environment variables
-dotenv.config();
 
 // Validate environment variables - fail fast if missing
 validateEnv();
