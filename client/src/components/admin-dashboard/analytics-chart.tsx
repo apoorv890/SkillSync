@@ -54,8 +54,9 @@ export function AnalyticsChart() {
   const [timeRange, setTimeRange] = useState<TimeRange>("90d")
 
   // Use API hook with automatic deduplication and caching
+  // Update API call when timeRange changes
   const { data: analyticsResponse, loading } = useApi<any>(
-    '/analytics?range=90d',
+    `/analytics?range=${timeRange}`,
     {
       refetchTrigger: refreshTrigger,
       cacheTime: 10 * 60 * 1000, // 10 minutes cache for analytics
@@ -65,11 +66,18 @@ export function AnalyticsChart() {
   // Convert array to map for easy lookup
   const apiData: Record<string, number> = useMemo(() => {
     const dataMap: Record<string, number> = {}
-    if (analyticsResponse?.data && Array.isArray(analyticsResponse.data)) {
-      analyticsResponse.data.forEach((item: any) => {
+    // Handle both direct array response and nested data property
+    const dataArray = Array.isArray(analyticsResponse) 
+      ? analyticsResponse 
+      : (analyticsResponse?.data && Array.isArray(analyticsResponse.data) 
+          ? analyticsResponse.data 
+          : [])
+    
+    dataArray.forEach((item: any) => {
+      if (item.date) {
         dataMap[item.date] = item.jobsCreated || 0
-      })
-    }
+      }
+    })
     return dataMap
   }, [analyticsResponse])
 
