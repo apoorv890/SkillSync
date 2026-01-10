@@ -8,6 +8,7 @@ import {
   validatePasswordReset,
   validateOTPVerification 
 } from '../middleware/validation.js';
+import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ if (!JWT_SECRET) {
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // Register a new user
-router.post('/register', validateRegistration, async (req, res) => {
+router.post('/register', authLimiter, validateRegistration, async (req, res) => {
   try {
     const { fullName, email, password } = req.body;
 
@@ -64,7 +65,7 @@ router.post('/register', validateRegistration, async (req, res) => {
 });
 
 // Login user
-router.post('/login', validateLogin, async (req, res) => {
+router.post('/login', authLimiter, validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -139,7 +140,7 @@ router.get('/me', verifyToken, async (req, res) => {
 });
 
 // Forgot Password - Send OTP
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -201,7 +202,7 @@ router.post('/verify-otp', validateOTPVerification, async (req, res) => {
 });
 
 // Reset Password
-router.post('/reset-password', validatePasswordReset, async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, validatePasswordReset, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
