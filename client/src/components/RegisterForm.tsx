@@ -45,7 +45,9 @@ export function RegisterForm({ className, ...props }) {
         throw new Error(result.message || 'Registration failed');
       }
 
-      localStorage.setItem('token', result.token);
+      // Support both new format (accessToken) and old format (token) for backward compatibility
+      const token = result.accessToken || result.token;
+      localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(result.user));
       setUser(result.user);
       setIsAuthenticated(true);
