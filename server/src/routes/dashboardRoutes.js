@@ -37,7 +37,7 @@ router.get('/stats', authenticate, async (req, res) => {
         {
           $project: {
             title: 1,
-            department: 1,
+            location: 1,
             status: 1,
             createdAt: 1,
             candidateCount: { $size: '$candidates' }
@@ -160,7 +160,7 @@ router.get('/admin', async (req, res) => {
       {
         $project: {
           title: 1,
-          department: 1,
+          location: 1,
           status: 1,
           createdAt: 1,
           candidateCount: { $size: '$candidates' }
@@ -221,7 +221,7 @@ router.get('/user', async (req, res) => {
     
     // Get recent applications
     const recentApplications = await Candidate.find()
-      .populate('jobId', 'title department company')
+      .populate('jobId', 'title location status')
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
