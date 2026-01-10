@@ -1,17 +1,28 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User from '../models/User.js';
+import { 
+  validateRegistration, 
+  validateLogin, 
+  validatePasswordReset,
+  validateOTPVerification 
+} from '../middleware/validation.js';
+import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-// Environment variables
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Environment variables - validate required vars
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
+}
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // Register a new user
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, validateRegistration, async (req, res) => {
   try {
-    const { fullName, email, password, role } = req.body;
+    const { fullName, email, password } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -19,12 +30,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
-    // Create new user
+    // Create new user - role is always 'user', never from request body
     const user = new User({
       fullName,
       email,
       password,
-      role: role || 'user' // Default to 'user' if not specified
+      role: 'user' // Always 'user' - role cannot be set during registration
     });
 
     await user.save();
@@ -54,7 +65,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login user
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -129,7 +140,7 @@ router.get('/me', verifyToken, async (req, res) => {
 });
 
 // Forgot Password - Send OTP
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -141,8 +152,11 @@ router.post('/forgot-password', async (req, res) => {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Set OTP and expiration (10 minutes)
-    user.resetPasswordOTP = otp;
+    // Hash OTP before storing (security best practice)
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    
+    // Set hashed OTP and expiration (10 minutes)
+    user.resetPasswordOTP = hashedOTP;
     user.resetPasswordOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
@@ -161,7 +175,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // Verify OTP
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', validateOTPVerification, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -170,8 +184,9 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if OTP matches and is not expired
-    if (user.resetPasswordOTP !== otp) {
+    // Hash provided OTP and compare with stored hash
+    const hashedInputOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.resetPasswordOTP !== hashedInputOTP) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
@@ -187,7 +202,7 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // Reset Password
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, validatePasswordReset, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
@@ -196,8 +211,9 @@ router.post('/reset-password', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Verify OTP again
-    if (user.resetPasswordOTP !== otp) {
+    // Verify OTP again - hash provided OTP and compare
+    const hashedInputOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.resetPasswordOTP !== hashedInputOTP) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 

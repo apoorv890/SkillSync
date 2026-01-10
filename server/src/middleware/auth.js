@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Validate JWT_SECRET is set - fail fast if missing
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
+}
 
 // Middleware to verify JWT token
 export const authenticate = async (req, res, next) => {

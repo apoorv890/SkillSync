@@ -20,8 +20,20 @@ class S3Service {
    */
   async uploadResume(file, userId) {
     try {
+      // Sanitize filename - remove path traversal and special characters
+      const sanitizedFilename = path.basename(file.originalname)
+        .replace(/[^a-zA-Z0-9.-]/g, '_')
+        .substring(0, 100); // Limit filename length
+      
       const timestamp = Date.now();
-      const ext = path.extname(file.originalname);
+      const ext = path.extname(sanitizedFilename).toLowerCase();
+      
+      // Validate extension is allowed
+      const allowedExts = ['.pdf', '.doc', '.docx'];
+      if (!allowedExts.includes(ext)) {
+        throw new ApiError(400, 'Invalid file extension. Only PDF, DOC, and DOCX files are allowed.');
+      }
+      
       const s3Key = `${S3_CONFIG.RESUME_FOLDER}/user-${userId}-${timestamp}${ext}`;
 
       const command = new PutObjectCommand({
