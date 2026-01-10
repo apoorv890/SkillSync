@@ -1,17 +1,26 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { 
+  validateRegistration, 
+  validateLogin, 
+  validatePasswordReset,
+  validateOTPVerification 
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
-// Environment variables
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Environment variables - validate required vars
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
+}
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // Register a new user
-router.post('/register', async (req, res) => {
+router.post('/register', validateRegistration, async (req, res) => {
   try {
-    const { fullName, email, password, role } = req.body;
+    const { fullName, email, password } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -19,12 +28,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
-    // Create new user
+    // Create new user - role is always 'user', never from request body
     const user = new User({
       fullName,
       email,
       password,
-      role: role || 'user' // Default to 'user' if not specified
+      role: 'user' // Always 'user' - role cannot be set during registration
     });
 
     await user.save();
@@ -54,7 +63,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login user
-router.post('/login', async (req, res) => {
+router.post('/login', validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -161,7 +170,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // Verify OTP
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', validateOTPVerification, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -187,7 +196,7 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // Reset Password
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', validatePasswordReset, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
