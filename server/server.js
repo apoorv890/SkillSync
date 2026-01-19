@@ -16,10 +16,10 @@ const startServer = async () => {
   try {
     await connectDB();
     server = app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`);
-      console.log(`Server running on port ${PORT}`);
-    });
-    
+  logger.info(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+});
+
     // Setup graceful shutdown handlers
     setupGracefulShutdown();
   } catch (error) {
@@ -30,35 +30,35 @@ const startServer = async () => {
 
 // Setup graceful shutdown
 const setupGracefulShutdown = () => {
-  process.on('SIGTERM', () => {
-    logger.info('SIGTERM signal received: closing HTTP server');
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM signal received: closing HTTP server');
     if (server) {
-      server.close(() => {
-        logger.info('HTTP server closed');
-        process.exit(0);
-      });
-    }
+  server.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
   });
+    }
+});
 
-  process.on('SIGINT', () => {
-    logger.info('SIGINT signal received: closing HTTP server');
+process.on('SIGINT', () => {
+  logger.info('SIGINT signal received: closing HTTP server');
     if (server) {
-      server.close(() => {
-        logger.info('HTTP server closed');
-        process.exit(0);
-      });
-    }
+  server.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
   });
+    }
+});
 
-  // Handle unhandled promise rejections
-  process.on('unhandledRejection', (err) => {
-    logger.error('Unhandled Promise Rejection:', err);
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  logger.error('Unhandled Promise Rejection:', err);
     if (server) {
-      server.close(() => {
-        process.exit(1);
-      });
-    }
+  server.close(() => {
+    process.exit(1);
   });
+    }
+});
 };
 
 startServer();
