@@ -6,9 +6,9 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import s3Client, { BUCKET_NAME } from '../config/aws.js';
-import logger from '../config/logger.js';
-import ApiError from '../utils/ApiError.js';
-import { S3_CONFIG } from '../config/constants.js';
+import logger from '@skillsync/shared/logger';
+import { ApiError } from '@skillsync/shared/http';
+import { S3_CONFIG } from '@skillsync/shared/constants';
 import path from 'path';
 
 class S3Service {

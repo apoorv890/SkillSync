@@ -5,16 +5,8 @@
 
 import jwt from 'jsonwebtoken';
 import TokenBlacklist from '../models/TokenBlacklist.js';
-import logger from '../config/logger.js';
-
-// Function to get JWT_SECRET, ensuring it's set
-const getJWTSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
-  }
-  return secret;
-};
+import logger from '@skillsync/shared/logger';
+import { getJWTSecret, verifyToken as verifyJwtToken } from '@skillsync/shared/jwt';
 
 // Token expiration times
 const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '15m'; // Short-lived access token
@@ -76,16 +68,7 @@ class TokenService {
    * @throws {Error} If token is invalid or expired
    */
   verifyToken(token) {
-    try {
-      return jwt.verify(token, getJWTSecret());
-    } catch (error) {
-      if (error.name === 'TokenExpiredError') {
-        throw new Error('Token has expired');
-      } else if (error.name === 'JsonWebTokenError') {
-        throw new Error('Invalid token');
-      }
-      throw error;
-    }
+    return verifyJwtToken(token);
   }
 
   /**

@@ -1,8 +1,7 @@
 import JobService from '../services/JobService.js';
-import logger from '../config/logger.js';
-import catchAsync from '../utils/catchAsync.js';
-import ApiResponse from '../utils/ApiResponse.js';
-import { HTTP_STATUS } from '../config/constants.js';
+import logger from '@skillsync/shared/logger';
+import { catchAsync, ApiResponse } from '@skillsync/shared/http';
+import { HTTP_STATUS } from '@skillsync/shared/constants';
 
 class JobController {
   /**

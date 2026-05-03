@@ -3,8 +3,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import app from './src/app.js';
-import logger from './src/config/logger.js';
-import connectDB from './src/config/database.js';
+import logger from '@skillsync/shared/logger';
+import connectDB from '@skillsync/shared/db';
 
 const PORT = process.env.PORT || 5000;
 

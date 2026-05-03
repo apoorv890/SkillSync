@@ -1,6 +1,5 @@
-import logger from '../config/logger.js';
-import ApiError from '../utils/ApiError.js';
-import { sanitizeRequestBody, sanitizeQueryParams, sanitizeError } from '../utils/safeLogger.js';
+import logger from '@skillsync/shared/logger';
+import { sanitizeRequestBody, sanitizeQueryParams, sanitizeError } from '@skillsync/shared/security';
 
 /**
  * Global error handling middleware

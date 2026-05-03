@@ -3,8 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Job from '../models/Job.js';
-import connectDB from '../config/database.js';
-import logger from '../config/logger.js';
+import connectDB from '@skillsync/shared/db';
+import logger from '@skillsync/shared/logger';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

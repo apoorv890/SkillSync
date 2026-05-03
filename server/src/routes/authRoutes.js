@@ -11,7 +11,7 @@ import {
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js';
 import TokenService from '../services/TokenService.js';
 import { authenticate } from '../middleware/auth.js';
-import { timingSafeOtpCompare } from '../utils/timingSafe.js';
+import { timingSafeOtpCompare } from '@skillsync/shared/security';
 
 const router = express.Router();
 

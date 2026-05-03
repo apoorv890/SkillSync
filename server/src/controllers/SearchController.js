@@ -14,7 +14,7 @@ import {
   sanitizeNumericFilter,
   sanitizeObjectId,
   sanitizePrefix
-} from '../utils/querySanitizer.js';
+} from '@skillsync/shared/security';
 
 /**
  * SearchController class handles all search-related operations

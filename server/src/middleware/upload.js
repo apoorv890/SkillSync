@@ -1,6 +1,6 @@
 import multer from 'multer';
 import path from 'path';
-import { FILE_UPLOAD } from '../config/constants.js';
+import { FILE_UPLOAD } from '@skillsync/shared/constants';
 
 // File filter to validate file types
 const fileFilter = (req, file, cb) => {
