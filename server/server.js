@@ -6,7 +6,8 @@ import app from './src/app.js';
 import logger from '@skillsync/shared/logger';
 import connectDB from '@skillsync/shared/db';
 
-const PORT = process.env.PORT || 5000;
+// Default 5500 when placed behind the API gateway (port 5000). Override with PORT in .env.
+const PORT = process.env.PORT || 5500;
 
 // Declare server variable in outer scope
 let server;

@@ -22,7 +22,7 @@
     "dev:search": "npm run dev --workspace=@skillsync/search-service",
     "dev:dashboard": "npm run dev --workspace=@skillsync/dashboard-service",
     "dev:services": "concurrently -n gateway,auth,jobs,apps,resume,search,dash -c blue,green,yellow,magenta,cyan,red,white \"npm:dev:gateway\" \"npm:dev:auth\" \"npm:dev:jobs\" \"npm:dev:applications\" \"npm:dev:resume-analysis\" \"npm:dev:search\" \"npm:dev:dashboard\"",
-    "dev": "concurrently -n client,server -c blue,green \"npm run dev:client\" \"npm run dev:server\"",
+    "dev": "concurrently -n client,gateway,api -c blue,magenta,green \"npm run dev:client\" \"npm run dev:gateway\" \"npm run dev:server\"",
     "build:client": "npm run build --workspace=SkillSync-client",
     "start:server": "npm start --workspace=SkillSync-server",
     "start": "npm run build:client && npm run start:server"
