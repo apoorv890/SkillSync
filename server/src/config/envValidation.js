@@ -14,7 +14,7 @@ const requiredEnvVars = [
 
 const optionalEnvVars = {
   'JWT_EXPIRES_IN': '7d',
-  'PORT': '5000',
+  'PORT': '5500',
   'NODE_ENV': 'development',
   'ALLOWED_ORIGINS': 'http://localhost:3000',
   'LOG_LEVEL': 'info',
