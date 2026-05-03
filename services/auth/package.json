@@ -1,0 +1,12 @@
+{
+  "name": "@skillsync/auth-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SkillSync auth service (users, tokens, profile photos, OTP)",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js"
+  }
+}
