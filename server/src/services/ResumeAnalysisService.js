@@ -1,5 +1,6 @@
 import Application from '../models/Application.js';
 import * as authClient from './authClient.js';
+import * as jobsClient from './jobsClient.js';
 import ResumeParserService from './ResumeParserService.js';
 import ATSScoreService from './ATSScoreService.js';
 import logger from '@skillsync/shared/logger';
@@ -17,14 +18,19 @@ class ResumeAnalysisService {
     try {
       logNested(req, 'Starting resume analysis');
 
-      // 1. Fetch application with populated job and user data
-      const application = await Application.findById(applicationId).populate('jobId');
+      // 1. Fetch application and job from jobs service
+      const application = await Application.findById(applicationId);
 
       if (!application) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
       }
 
       const userRow = await authClient.getUserById(application.userId);
+      const job = await jobsClient.getJobById(application.jobId);
+
+      if (!job) {
+        throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
+      }
 
       if (!application.resume?.s3Key) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No resume found for this application');
@@ -49,11 +55,11 @@ class ResumeAnalysisService {
 
       // 4. Prepare job details for AI analysis
       const jobDetails = {
-        title: application.jobId.title,
-        department: application.jobId.department,
-        location: application.jobId.location,
-        description: application.jobId.description,
-        requirements: application.jobId.requirements
+        title: job.title,
+        department: job.department || '',
+        location: job.location,
+        description: job.description || job.summary || '',
+        requirements: job.requirements || job.requiredSkills || ''
       };
 
       // 5. Generate detailed ATS score using AI (resume text never stored, only in memory)

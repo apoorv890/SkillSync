@@ -21,8 +21,7 @@ const jobSchema = new mongoose.Schema({
   },
   summary: {
     type: String,
-    required: function() {
-      // Required for new jobs, optional if legacy description exists
+    required: function () {
       return !this.description;
     }
   },
@@ -32,8 +31,7 @@ const jobSchema = new mongoose.Schema({
   },
   requiredSkills: {
     type: String,
-    required: function() {
-      // Required for new jobs, optional if legacy requirements exists
+    required: function () {
       return !this.requirements;
     }
   },
@@ -49,7 +47,6 @@ const jobSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  // Legacy fields for backward compatibility
   description: {
     type: String,
     default: ''
@@ -68,31 +65,32 @@ const jobSchema = new mongoose.Schema({
   },
   searchableTitle: {
     type: String,
-    default: function() {
+    default: function () {
       return this.title ? this.title.toLowerCase() : '';
     }
   }
 });
 
-// Create text indexes for full-text search with weights
-jobSchema.index({ 
-  title: 'text', 
-  location: 'text', 
-  description: 'text', 
-  requirements: 'text',
-  keywords: 'text'
-}, {
-  weights: {
-    title: 10,
-    location: 5,
-    keywords: 8,
-    description: 3,
-    requirements: 3
+jobSchema.index(
+  {
+    title: 'text',
+    location: 'text',
+    description: 'text',
+    requirements: 'text',
+    keywords: 'text'
   },
-  name: "JobTextIndex"
-});
+  {
+    weights: {
+      title: 10,
+      location: 5,
+      keywords: 8,
+      description: 3,
+      requirements: 3
+    },
+    name: 'JobTextIndex'
+  }
+);
 
-// Create regular indexes for exact matching
 jobSchema.index({ title: 1 });
 jobSchema.index({ searchableTitle: 1 });
 jobSchema.index({ location: 1 });

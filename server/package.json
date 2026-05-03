@@ -5,8 +5,7 @@
   "description": "SkillSync Backend API Server",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
-    "seed:jobs": "node src/scripts/seedJobs.js"
+    "dev": "node server.js"
   },
   "dependencies": {
     "@skillsync/shared": "*",

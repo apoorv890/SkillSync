@@ -1,11 +1,45 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import Job from '../models/Job.js';
+import * as jobsClient from '../services/jobsClient.js';
 import Candidate from '../models/Candidate.js';
 import Application from '../models/Application.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
+
+function pickJobSummary(job) {
+  if (!job) {
+    return null;
+  }
+  return {
+    _id: job._id,
+    title: job.title,
+    location: job.location,
+    workType: job.workType,
+    status: job.status,
+    department: job.department
+  };
+}
+
+async function attachJobsToApplications(apps) {
+  const jobIds = [...new Set(apps.map((a) => String(a.jobId)).filter(Boolean))];
+  const jobs = await jobsClient.getJobsByIds(jobIds);
+  const map = new Map(jobs.map((j) => [String(j._id), j]));
+  return apps.map((a) => ({
+    ...a,
+    jobId: pickJobSummary(map.get(String(a.jobId))) || a.jobId
+  }));
+}
+
+async function attachJobsToCandidates(rows) {
+  const jobIds = [...new Set(rows.map((c) => String(c.jobId)).filter(Boolean))];
+  const jobs = await jobsClient.getJobsByIds(jobIds);
+  const map = new Map(jobs.map((j) => [String(j._id), j]));
+  return rows.map((c) => ({
+    ...c,
+    jobId: pickJobSummary(map.get(String(c.jobId))) || c.jobId
+  }));
+}
 
 // Combined stats endpoint - returns data based on user role (MUST BE FIRST)
 router.get('/stats', authenticate, async (req, res) => {
@@ -13,40 +47,15 @@ router.get('/stats', authenticate, async (req, res) => {
     const userRole = req.user?.role;
     
     if (userRole === 'admin') {
-      // Return admin stats
-      const totalJobs = await Job.countDocuments();
-      const activeJobs = await Job.countDocuments({ status: 'active' });
+      const {
+        totalJobs,
+        activeJobs,
+        jobsByStatus,
+        recentJobs
+      } = await jobsClient.getAdminDashboardJobStats();
       const totalCandidates = await Candidate.countDocuments();
       const interviewsScheduled = await Candidate.countDocuments({ interviewScheduled: true });
-      
-      const jobsByStatus = {
-        active: await Job.countDocuments({ status: 'active' }),
-        draft: await Job.countDocuments({ status: 'draft' }),
-        closed: await Job.countDocuments({ status: 'closed' })
-      };
-      
-      const recentJobs = await Job.aggregate([
-        {
-          $lookup: {
-            from: 'candidates',
-            localField: '_id',
-            foreignField: 'jobId',
-            as: 'candidates'
-          }
-        },
-        {
-          $project: {
-            title: 1,
-            location: 1,
-            status: 1,
-            createdAt: 1,
-            candidateCount: { $size: '$candidates' }
-          }
-        },
-        { $sort: { createdAt: -1 } },
-        { $limit: 10 }
-      ]);
-      
+
       return res.json({
         totalJobs,
         activeJobs,
@@ -103,12 +112,13 @@ router.get('/stats', authenticate, async (req, res) => {
         withdrawn: await Application.countDocuments({ userId, status: 'withdrawn' })
       };
       
-      const recentApplications = await Application.find({ userId })
-        .populate('jobId', 'title location workType status')
+      const recentApplicationsRaw = await Application.find({ userId })
         .sort({ appliedAt: -1 })
         .limit(10)
         .lean();
-      
+
+      const recentApplications = await attachJobsToApplications(recentApplicationsRaw);
+
       return res.json({
         totalApplications,
         activeApplications,
@@ -128,48 +138,17 @@ router.get('/stats', authenticate, async (req, res) => {
 // Admin Dashboard Stats
 router.get('/admin', async (req, res) => {
   try {
-    // Get total jobs count
-    const totalJobs = await Job.countDocuments();
-    
-    // Get active jobs count
-    const activeJobs = await Job.countDocuments({ status: 'active' });
-    
-    // Get total candidates count
+    const {
+      totalJobs,
+      activeJobs,
+      jobsByStatus,
+      recentJobs
+    } = await jobsClient.getAdminDashboardJobStats();
+
     const totalCandidates = await Candidate.countDocuments();
-    
-    // Get interviews scheduled count
+
     const interviewsScheduled = await Candidate.countDocuments({ interviewScheduled: true });
-    
-    // Get jobs by status
-    const jobsByStatus = {
-      active: await Job.countDocuments({ status: 'active' }),
-      draft: await Job.countDocuments({ status: 'draft' }),
-      closed: await Job.countDocuments({ status: 'closed' })
-    };
-    
-    // Get recent jobs with candidate count
-    const recentJobs = await Job.aggregate([
-      {
-        $lookup: {
-          from: 'candidates',
-          localField: '_id',
-          foreignField: 'jobId',
-          as: 'candidates'
-        }
-      },
-      {
-        $project: {
-          title: 1,
-          location: 1,
-          status: 1,
-          createdAt: 1,
-          candidateCount: { $size: '$candidates' }
-        }
-      },
-      { $sort: { createdAt: -1 } },
-      { $limit: 10 }
-    ]);
-    
+
     res.json({
       totalJobs,
       activeJobs,
@@ -219,13 +198,13 @@ router.get('/user', async (req, res) => {
       rejected: 0 // This would need a status field in the Candidate model
     };
     
-    // Get recent applications
-    const recentApplications = await Candidate.find()
-      .populate('jobId', 'title location status')
+    const recentApplicationsRaw = await Candidate.find()
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
-    
+
+    const recentApplications = await attachJobsToCandidates(recentApplicationsRaw);
+
     res.json({
       totalApplications,
       activeApplications,

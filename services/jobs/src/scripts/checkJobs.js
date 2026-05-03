@@ -1,9 +1,12 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import Job from '../models/Job.js';
 import connectDB from '@skillsync/shared/db';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../../../../server/.env') });
 
 async function checkJobs() {
   try {
