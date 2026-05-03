@@ -1,6 +1,6 @@
 import Application from '../models/Application.js';
-import Job from '../models/Job.js';
 import * as authClient from './authClient.js';
+import * as jobsClient from './jobsClient.js';
 import S3Service from './S3Service.js';
 import ResumeAnalysisService from './ResumeAnalysisService.js';
 import logger from '@skillsync/shared/logger';
@@ -32,7 +32,7 @@ class ApplicationService {
       }
       
       // Validate job exists and is active
-      const job = await Job.findById(sanitizedJobId);
+      const job = await jobsClient.getJobById(sanitizedJobId);
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
       }
@@ -170,11 +170,20 @@ class ApplicationService {
       }
       
       const applications = await Application.find({ userId: sanitizedCandidateId })
-        .populate('jobId')
-        .sort({ appliedAt: -1 });
+        .sort({ appliedAt: -1 })
+        .lean();
 
-      logCompact(req, `Found ${applications.length} applications`, { candidateId });
-      return applications;
+      const jobIds = [...new Set(applications.map((a) => String(a.jobId)).filter(Boolean))];
+      const jobs = await jobsClient.getJobsByIds(jobIds);
+      const jobMap = new Map(jobs.map((j) => [String(j._id), j]));
+
+      const enriched = applications.map((a) => ({
+        ...a,
+        jobId: jobMap.get(String(a.jobId)) || a.jobId
+      }));
+
+      logCompact(req, `Found ${enriched.length} applications`, { candidateId });
+      return enriched;
     } catch (error) {
       logger.error(`Error fetching applications: ${error.message}`, { 
         candidateId, 

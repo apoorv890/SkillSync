@@ -20,7 +20,8 @@ const optionalEnvVars = {
   'ALLOWED_ORIGINS': 'http://localhost:3000',
   'LOG_LEVEL': 'info',
   'AWS_REGION': 'us-east-1',
-  'AUTH_SERVICE_URL': 'http://127.0.0.1:5001'
+  'AUTH_SERVICE_URL': 'http://127.0.0.1:5001',
+  'JOBS_SERVICE_URL': 'http://127.0.0.1:5002'
 };
 
 /**

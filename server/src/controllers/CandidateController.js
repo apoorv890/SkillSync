@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import pdfParse from 'pdf-parse';
 import { Groq } from 'groq-sdk';
-import Job from '../models/Job.js';
+import * as jobsClient from '../services/jobsClient.js';
 import Candidate from '../models/Candidate.js';
 
 /**
@@ -157,10 +157,14 @@ Return ONLY a valid JSON object with the following structure:
         return res.status(400).json({ error: 'Invalid job ID' });
       }
       
-      const job = await Job.findById(jobId);
+      const job = await jobsClient.getJobById(jobId);
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
       }
+
+      const jobDescription =
+        job.description ||
+        [job.summary, job.keyResponsibilities, job.requiredSkills].filter(Boolean).join('\n\n');
       
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'No resume files uploaded' });
@@ -179,7 +183,7 @@ Return ONLY a valid JSON object with the following structure:
           const data = await pdfParse(pdfBuffer);
           const resumeText = data.text;
 
-          const candidateData = await this.processResumeWithLLM(resumeText, job.description);
+          const candidateData = await this.processResumeWithLLM(resumeText, jobDescription);
           candidateData.resumeUrl = file.path;
           
           const candidate = new Candidate({

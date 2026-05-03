@@ -1,73 +1,46 @@
-import Job from '../models/Job.js';
 import Candidate from '../models/Candidate.js';
-import { 
-  isLikelyJobTitle, 
-  createExactMatchRegex, 
-  createPartialMatchRegex, 
-  normalizeQuery 
+import * as jobsClient from '../services/jobsClient.js';
+import {
+  isLikelyJobTitle,
+  createExactMatchRegex,
+  createPartialMatchRegex,
+  normalizeQuery
 } from '../utils/searchUtils.js';
-import { 
-  sanitizeSearchQuery, 
-  sanitizeJobStatus, 
-  sanitizeDepartment, 
-  sanitizeLocation,
+import {
+  sanitizeSearchQuery,
   sanitizeNumericFilter,
   sanitizeObjectId,
   sanitizePrefix
 } from '@skillsync/shared/security';
 
-/**
- * SearchController class handles all search-related operations
- */
+function pickJobPopulateShape(job) {
+  if (!job) {
+    return null;
+  }
+  return {
+    _id: job._id,
+    title: job.title,
+    department: job.department,
+    location: job.location,
+    status: job.status
+  };
+}
+
+async function populateCandidatesJobId(candidates) {
+  const ids = [...new Set(candidates.map((c) => String(c.jobId)).filter(Boolean))];
+  const jobs = await jobsClient.getJobsByIds(ids);
+  const map = new Map(jobs.map((j) => [String(j._id), j]));
+  return candidates.map((c) => ({
+    ...c,
+    jobId: pickJobPopulateShape(map.get(String(c.jobId))) || c.jobId
+  }));
+}
+
 class SearchController {
-  /**
-   * Search jobs
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
   async searchJobs(req, res) {
     try {
       const { query, department, location, status } = req.query;
-      
-      const searchCriteria = {};
-      
-      // Sanitize search query
-      const sanitizedQuery = sanitizeSearchQuery(query);
-      if (sanitizedQuery) {
-        searchCriteria.$text = { $search: sanitizedQuery };
-      }
-      
-      // Sanitize filters
-      const sanitizedDepartment = sanitizeDepartment(department);
-      if (sanitizedDepartment) {
-        searchCriteria.department = sanitizedDepartment;
-      }
-      
-      const sanitizedLocation = sanitizeLocation(location);
-      if (sanitizedLocation) {
-        searchCriteria.location = sanitizedLocation;
-      }
-      
-      const sanitizedStatus = sanitizeJobStatus(status);
-      if (sanitizedStatus) {
-        searchCriteria.status = sanitizedStatus;
-      }
-      
-      let jobs;
-      
-      if (sanitizedQuery) {
-        jobs = await Job.find(
-          searchCriteria,
-          { score: { $meta: "textScore" } }
-        )
-        .sort({ score: { $meta: "textScore" }, createdAt: -1 })
-        .limit(20);
-      } else {
-        jobs = await Job.find(searchCriteria)
-          .sort({ createdAt: -1 })
-          .limit(20);
-      }
-      
+      const jobs = await jobsClient.searchJobsFiltered({ query, department, location, status });
       res.json(jobs);
     } catch (error) {
       console.error('Error searching jobs:', error);
@@ -75,30 +48,22 @@ class SearchController {
     }
   }
 
-  /**
-   * Search candidates
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
   async searchCandidates(req, res) {
     try {
       const { query, jobId, minScore, maxScore } = req.query;
-      
+
       const searchCriteria = {};
-      
-      // Sanitize search query
+
       const sanitizedQuery = sanitizeSearchQuery(query);
       if (sanitizedQuery) {
         searchCriteria.$text = { $search: sanitizedQuery };
       }
-      
-      // Sanitize job ID
+
       const sanitizedJobId = sanitizeObjectId(jobId);
       if (sanitizedJobId) {
         searchCriteria.jobId = sanitizedJobId;
       }
-      
-      // Sanitize score filters
+
       if (minScore !== undefined || maxScore !== undefined) {
         searchCriteria.atsScore = {};
         const sanitizedMin = sanitizeNumericFilter(minScore, 0, 100);
@@ -106,22 +71,17 @@ class SearchController {
         if (sanitizedMin !== null) searchCriteria.atsScore.$gte = sanitizedMin;
         if (sanitizedMax !== null) searchCriteria.atsScore.$lte = sanitizedMax;
       }
-      
+
       let candidates;
-      
+
       if (sanitizedQuery) {
-        candidates = await Candidate.find(
-          searchCriteria,
-          { score: { $meta: "textScore" } }
-        )
-        .sort({ score: { $meta: "textScore" }, createdAt: -1 })
-        .limit(20);
-      } else {
-        candidates = await Candidate.find(searchCriteria)
-          .sort({ createdAt: -1 })
+        candidates = await Candidate.find(searchCriteria, { score: { $meta: 'textScore' } })
+          .sort({ score: { $meta: 'textScore' }, createdAt: -1 })
           .limit(20);
+      } else {
+        candidates = await Candidate.find(searchCriteria).sort({ createdAt: -1 }).limit(20);
       }
-      
+
       res.json(candidates);
     } catch (error) {
       console.error('Error searching candidates:', error);
@@ -129,123 +89,67 @@ class SearchController {
     }
   }
 
-  /**
-   * Unified search for both jobs and candidates
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
   async unifiedSearch(req, res) {
     try {
       const { query } = req.query;
-      
-      // Sanitize search query
+
       const sanitizedQuery = sanitizeSearchQuery(query);
       if (!sanitizedQuery) {
         return res.json({ jobs: [], candidates: [] });
       }
-      
+
       const normalizedQuery = normalizeQuery(sanitizedQuery);
       const jobTitleQuery = isLikelyJobTitle(normalizedQuery);
-      
+
       const results = {
         jobs: [],
         candidates: []
       };
-      
-      // JOBS SEARCH
-      const exactJobMatches = await Job.find({ 
-        $or: [
-          { title: createExactMatchRegex(sanitizedQuery) },
-          { searchableTitle: normalizedQuery }
-        ]
-      }).limit(5);
-      
-      if (exactJobMatches.length > 0) {
-        results.jobs = exactJobMatches;
-      } else {
-        const partialTitleMatches = await Job.find({
-          title: createPartialMatchRegex(sanitizedQuery)
-        }).limit(8);
-        
-        if (partialTitleMatches.length > 0) {
-          results.jobs = partialTitleMatches;
-        } else {
-          const jobSearchCriteria = { $text: { $search: sanitizedQuery } };
-          
-          if (jobTitleQuery) {
-            const jobTextMatches = await Job.find(
-              jobSearchCriteria,
-              { 
-                score: { $meta: "textScore" },
-                titleMatch: {
-                  $cond: {
-                    if: { $regexMatch: { input: "$title", regex: createPartialMatchRegex(sanitizedQuery) } },
-                    then: 10,
-                    else: 0
-                  }
-                }
-              }
-            )
-            .sort({ titleMatch: -1, score: { $meta: "textScore" } })
-            .limit(10);
-            
-            results.jobs = jobTextMatches;
-          } else {
-            const jobTextMatches = await Job.find(
-              jobSearchCriteria,
-              { score: { $meta: "textScore" } }
-            )
-            .sort({ score: { $meta: "textScore" } })
-            .limit(5);
-            
-            results.jobs = jobTextMatches;
-          }
-        }
-      }
-      
-      // CANDIDATES SEARCH
+
+      results.jobs = await jobsClient.unifiedSearchJobs(sanitizedQuery);
+
       if (!jobTitleQuery) {
         const exactNameMatches = await Candidate.find({
-          $or: [
-            { name: createExactMatchRegex(sanitizedQuery) },
-            { searchableName: normalizedQuery }
-          ]
-        }).limit(5);
-        
+          $or: [{ name: createExactMatchRegex(sanitizedQuery) }, { searchableName: normalizedQuery }]
+        })
+          .limit(5)
+          .lean();
+
         if (exactNameMatches.length > 0) {
           results.candidates = exactNameMatches;
         } else {
           const partialNameMatches = await Candidate.find({
             name: createPartialMatchRegex(sanitizedQuery)
-          }).limit(8);
-          
+          })
+            .limit(8)
+            .lean();
+
           if (partialNameMatches.length > 0) {
             results.candidates = partialNameMatches;
           } else {
             results.candidates = await Candidate.find(
               { $text: { $search: sanitizedQuery } },
-              { score: { $meta: "textScore" } }
+              { score: { $meta: 'textScore' } }
             )
-            .sort({ score: { $meta: "textScore" } })
-            .limit(5);
+              .sort({ score: { $meta: 'textScore' } })
+              .limit(5)
+              .lean();
           }
         }
       } else {
         results.candidates = await Candidate.find(
           { $text: { $search: sanitizedQuery } },
-          { score: { $meta: "textScore" } }
+          { score: { $meta: 'textScore' } }
         )
-        .sort({ score: { $meta: "textScore" } })
-        .limit(3);
+          .sort({ score: { $meta: 'textScore' } })
+          .limit(3)
+          .lean();
       }
-      
+
       if (results.candidates.length > 0) {
-        results.candidates = await Candidate.populate(results.candidates, {
-          path: 'jobId',
-          select: 'title department'
-        });
+        results.candidates = await populateCandidatesJobId(results.candidates);
       }
-      
+
       res.json(results);
     } catch (error) {
       console.error('Error performing unified search:', error);
@@ -253,78 +157,26 @@ class SearchController {
     }
   }
 
-  /**
-   * Get job suggestions for type-ahead
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
   async getJobSuggestions(req, res) {
     try {
       const { prefix } = req.query;
-      
-      // Sanitize prefix to prevent regex injection
-      const sanitizedPrefix = sanitizePrefix(prefix);
-      if (!sanitizedPrefix) {
-        return res.json([]);
-      }
-      
-      const titleRegex = new RegExp(`^${sanitizedPrefix}`, 'i');
-      const departmentRegex = new RegExp(`^${sanitizedPrefix}`, 'i');
-      const locationRegex = new RegExp(`^${sanitizedPrefix}`, 'i');
-      
-      const jobs = await Job.find({
-        $or: [
-          { title: titleRegex },
-          { department: departmentRegex },
-          { location: locationRegex },
-          { keywords: titleRegex }
-        ]
-      }).limit(10);
-      
-      const suggestions = new Set();
-      
-      jobs.forEach(job => {
-        if (job.title.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
-          suggestions.add(job.title);
-        }
-        
-        if (job.department.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
-          suggestions.add(job.department);
-        }
-        
-        if (job.location.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
-          suggestions.add(job.location);
-        }
-        
-        job.keywords.forEach(keyword => {
-          if (keyword.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
-            suggestions.add(keyword);
-          }
-        });
-      });
-      
-      res.json(Array.from(suggestions).slice(0, 10));
+      const suggestions = await jobsClient.getJobSuggestions(prefix);
+      res.json(suggestions);
     } catch (error) {
       console.error('Error getting job suggestions:', error);
       res.status(500).json({ error: error.message });
     }
   }
 
-  /**
-   * Get candidate suggestions for type-ahead
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
   async getCandidateSuggestions(req, res) {
     try {
       const { prefix, jobId } = req.query;
-      
-      // Sanitize prefix to prevent regex injection
+
       const sanitizedPrefix = sanitizePrefix(prefix);
       if (!sanitizedPrefix) {
         return res.json([]);
       }
-      
+
       const searchCriteria = {
         $or: [
           { name: new RegExp(`^${sanitizedPrefix}`, 'i') },
@@ -332,33 +184,32 @@ class SearchController {
           { skills: new RegExp(`^${sanitizedPrefix}`, 'i') }
         ]
       };
-      
-      // Sanitize job ID
+
       const sanitizedJobId = sanitizeObjectId(jobId);
       if (sanitizedJobId) {
         searchCriteria.jobId = sanitizedJobId;
       }
-      
+
       const candidates = await Candidate.find(searchCriteria).limit(10);
-      
+
       const suggestions = new Set();
-      
-      candidates.forEach(candidate => {
+
+      candidates.forEach((candidate) => {
         if (candidate.name.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
           suggestions.add(candidate.name);
         }
-        
+
         if (candidate.email.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
           suggestions.add(candidate.email);
         }
-        
-        candidate.skills.forEach(skill => {
+
+        candidate.skills.forEach((skill) => {
           if (skill.toLowerCase().startsWith(sanitizedPrefix.toLowerCase())) {
             suggestions.add(skill);
           }
         });
       });
-      
+
       res.json(Array.from(suggestions).slice(0, 10));
     } catch (error) {
       console.error('Error getting candidate suggestions:', error);
@@ -367,5 +218,4 @@ class SearchController {
   }
 }
 
-// Export a singleton instance
 export default new SearchController();

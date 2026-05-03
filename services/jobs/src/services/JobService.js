@@ -6,32 +6,24 @@ import { HTTP_STATUS, JOB_STATUS } from '@skillsync/shared/constants';
 import { sanitizeJobStatus, sanitizeDepartment, sanitizeLocation } from '@skillsync/shared/security';
 
 class JobService {
-  /**
-   * Get all jobs
-   * @param {Object} filters - Filter options
-   * @param {Object} req - Express request object (for logging context)
-   * @returns {Promise<Array>} List of jobs
-   */
   async getAllJobs(filters = {}, req = null) {
     logNested(req, 'Fetching all jobs', { filters: JSON.stringify(filters) });
 
     try {
       const query = {};
-      
-      // Sanitize status filter to prevent injection
+
       const sanitizedStatus = sanitizeJobStatus(filters.status);
       if (sanitizedStatus) {
         query.status = sanitizedStatus;
       }
-      
-      // Sanitize department filter to prevent injection
+
       const sanitizedDepartment = sanitizeDepartment(filters.department);
       if (sanitizedDepartment) {
         query.department = sanitizedDepartment;
       }
 
       const jobs = await Job.find(query).sort({ createdAt: -1 });
-      
+
       logCompact(req, `Found ${jobs.length} jobs`, { count: jobs.length });
       return jobs;
     } catch (error) {
@@ -41,18 +33,12 @@ class JobService {
     }
   }
 
-  /**
-   * Get job by ID
-   * @param {string} jobId - Job ID
-   * @param {Object} req - Express request object (for logging context)
-   * @returns {Promise<Object>} Job details
-   */
   async getJobById(jobId, req = null) {
     logNested(req, 'Fetching job by ID', { jobId });
 
     try {
       const job = await Job.findById(jobId);
-      
+
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
       }
@@ -66,19 +52,13 @@ class JobService {
     }
   }
 
-  /**
-   * Create new job
-   * @param {Object} jobData - Job data
-   * @param {Object} req - Express request object (for logging context)
-   * @returns {Promise<Object>} Created job
-   */
   async createJob(jobData, req = null) {
     logNested(req, 'Creating new job', { title: jobData.title });
 
     try {
-      const { 
-        title, 
-        location, 
+      const {
+        title,
+        location,
         workType,
         status,
         summary,
@@ -89,9 +69,11 @@ class JobService {
         compensation
       } = jobData;
 
-      // Validate required fields
       if (!title || !location || !summary || !requiredSkills) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Missing required fields: title, location, summary, and requiredSkills are required');
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          'Missing required fields: title, location, summary, and requiredSkills are required'
+        );
       }
 
       const job = await Job.create({
@@ -115,21 +97,11 @@ class JobService {
     }
   }
 
-  /**
-   * Update job
-   * @param {string} jobId - Job ID
-   * @param {Object} updateData - Update data
-   * @returns {Promise<Object>} Updated job
-   */
   async updateJob(jobId, updateData) {
     logger.info('Updating job', { jobId });
 
     try {
-      const job = await Job.findByIdAndUpdate(
-        jobId,
-        updateData,
-        { new: true, runValidators: true }
-      );
+      const job = await Job.findByIdAndUpdate(jobId, updateData, { new: true, runValidators: true });
 
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
@@ -143,10 +115,6 @@ class JobService {
     }
   }
 
-  /**
-   * Delete job
-   * @param {string} jobId - Job ID
-   */
   async deleteJob(jobId) {
     logger.info('Deleting job', { jobId });
 
@@ -164,11 +132,6 @@ class JobService {
     }
   }
 
-  /**
-   * Search jobs
-   * @param {string} searchTerm - Search term
-   * @returns {Promise<Array>} Matching jobs
-   */
   async searchJobs(searchTerm) {
     logger.info('Searching jobs', { searchTerm });
 
