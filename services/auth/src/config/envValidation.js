@@ -6,21 +6,19 @@
 const requiredEnvVars = [
   'JWT_SECRET',
   'MONGODB_URI',
-  'GROQ_API_KEY',
+  'INTERNAL_SERVICE_TOKEN',
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
-  'AWS_S3_BUCKET_NAME',
-  'INTERNAL_SERVICE_TOKEN'
+  'AWS_S3_BUCKET_NAME'
 ];
 
 const optionalEnvVars = {
   'JWT_EXPIRES_IN': '7d',
-  'PORT': '5500',
   'NODE_ENV': 'development',
   'ALLOWED_ORIGINS': 'http://localhost:3000',
   'LOG_LEVEL': 'info',
   'AWS_REGION': 'us-east-1',
-  'AUTH_SERVICE_URL': 'http://127.0.0.1:5001'
+  'AUTH_SERVICE_PORT': '5001'
 };
 
 /**

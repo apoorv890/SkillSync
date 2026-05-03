@@ -6,6 +6,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import logger from '@skillsync/shared/logger';
 import { validateEnv } from './config/envValidation.js';
 import requestLogger from './middleware/requestLogger.js';
@@ -16,6 +17,8 @@ import routes from './routes/index.js';
 
 // Validate environment variables - fail fast if missing
 validateEnv();
+
+const jwtSecret = process.env.JWT_SECRET;
 
 // Create Express app
 const app = express();
@@ -43,6 +46,8 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors(corsOptions));
+
+app.use(cookieParser(jwtSecret));
 
 // Body parsing with size limits
 app.use(express.json({ limit: '10mb' }));

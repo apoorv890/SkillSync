@@ -1,4 +1,5 @@
 import Application from '../models/Application.js';
+import * as authClient from './authClient.js';
 import ResumeParserService from './ResumeParserService.js';
 import ATSScoreService from './ATSScoreService.js';
 import logger from '@skillsync/shared/logger';
@@ -17,13 +18,13 @@ class ResumeAnalysisService {
       logNested(req, 'Starting resume analysis');
 
       // 1. Fetch application with populated job and user data
-      const application = await Application.findById(applicationId)
-        .populate('jobId')
-        .populate('userId', 'fullName email');
+      const application = await Application.findById(applicationId).populate('jobId');
 
       if (!application) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
       }
+
+      const userRow = await authClient.getUserById(application.userId);
 
       if (!application.resume?.s3Key) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No resume found for this application');
@@ -72,10 +73,10 @@ class ResumeAnalysisService {
       application.atsScore.error = null;
 
       // Update candidate info if not already set
-      if (!application.candidateInfo?.name && application.userId) {
+      if (!application.candidateInfo?.name && userRow) {
         application.candidateInfo = {
-          name: application.userId.fullName,
-          email: application.userId.email
+          name: userRow.fullName,
+          email: userRow.email
         };
       }
 
