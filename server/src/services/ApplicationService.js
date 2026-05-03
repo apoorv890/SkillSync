@@ -3,11 +3,11 @@ import Job from '../models/Job.js';
 import User from '../models/User.js';
 import S3Service from './S3Service.js';
 import ResumeAnalysisService from './ResumeAnalysisService.js';
-import logger from '../config/logger.js';
+import logger from '@skillsync/shared/logger';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
-import ApiError from '../utils/ApiError.js';
-import { APPLICATION_STATUS, JOB_STATUS, HTTP_STATUS } from '../config/constants.js';
-import { sanitizeObjectId } from '../utils/querySanitizer.js';
+import { ApiError } from '@skillsync/shared/http';
+import { APPLICATION_STATUS, JOB_STATUS, HTTP_STATUS } from '@skillsync/shared/constants';
+import { sanitizeObjectId } from '@skillsync/shared/security';
 
 class ApplicationService {
   /**

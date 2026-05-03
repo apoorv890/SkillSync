@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Job from '../models/Job.js';
-import connectDB from '../config/database.js';
+import connectDB from '@skillsync/shared/db';
 
 dotenv.config();
 

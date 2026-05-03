@@ -1,6 +1,6 @@
-import logger from '../config/logger.js';
+import logger from '@skillsync/shared/logger';
 import chalk from 'chalk';
-import { sanitizeObject } from './safeLogger.js';
+import { sanitizeObject } from '@skillsync/shared/security';
 
 /**
  * Enhanced Logger Helper - Production-ready logging with visual indicators

@@ -1,7 +1,7 @@
 import Groq from 'groq-sdk';
-import logger from '../config/logger.js';
-import ApiError from '../utils/ApiError.js';
-import { HTTP_STATUS } from '../config/constants.js';
+import logger from '@skillsync/shared/logger';
+import { ApiError } from '@skillsync/shared/http';
+import { HTTP_STATUS } from '@skillsync/shared/constants';
 
 class ATSScoreService {
   constructor() {

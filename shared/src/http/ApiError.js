@@ -7,7 +7,7 @@ class ApiError extends Error {
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.success = false;
-    
+
     if (stack) {
       this.stack = stack;
     } else {

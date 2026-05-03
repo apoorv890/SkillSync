@@ -1,15 +1,12 @@
 import winston from 'winston';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Custom console format - single line only
 const consoleFormat = winston.format.printf(({ level, message, timestamp }) => {
-  // Simple single-line format, no metadata expansion
   return `${timestamp} [${level}] ${message}`;
 });
+
+const serviceName = process.env.SERVICE_NAME || 'SkillSync-backend';
+const logsDir = path.join(process.cwd(), 'logs');
 
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
@@ -19,23 +16,22 @@ const logger = winston.createLogger({
     winston.format.splat(),
     winston.format.json()
   ),
-  defaultMeta: { service: 'SkillSync-backend' },
+  defaultMeta: { service: serviceName },
   transports: [
-    new winston.transports.File({ 
-      filename: path.join(__dirname, '../../logs/error.log'), 
+    new winston.transports.File({
+      filename: path.join(logsDir, 'error.log'),
       level: 'error',
-      maxsize: 5242880, // 5MB
+      maxsize: 5242880,
       maxFiles: 5
     }),
-    new winston.transports.File({ 
-      filename: path.join(__dirname, '../../logs/combined.log'),
-      maxsize: 5242880, // 5MB
+    new winston.transports.File({
+      filename: path.join(logsDir, 'combined.log'),
+      maxsize: 5242880,
       maxFiles: 5
     })
   ]
 });
 
-// Console logging in development with custom readable format
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(

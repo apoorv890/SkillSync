@@ -1,11 +1,9 @@
 import ApplicationService from '../services/ApplicationService.js';
 import ResumeAnalysisService from '../services/ResumeAnalysisService.js';
 import Application from '../models/Application.js';
-import logger from '../config/logger.js';
-import catchAsync from '../utils/catchAsync.js';
-import ApiResponse from '../utils/ApiResponse.js';
-import ApiError from '../utils/ApiError.js';
-import { HTTP_STATUS } from '../config/constants.js';
+import logger from '@skillsync/shared/logger';
+import { catchAsync, ApiResponse, ApiError } from '@skillsync/shared/http';
+import { HTTP_STATUS } from '@skillsync/shared/constants';
 import { logNested, logCompact } from '../utils/loggerHelper.js';
 
 class ApplicationController {

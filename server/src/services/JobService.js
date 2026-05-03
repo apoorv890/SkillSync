@@ -1,9 +1,9 @@
 import Job from '../models/Job.js';
-import logger from '../config/logger.js';
+import logger from '@skillsync/shared/logger';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
-import ApiError from '../utils/ApiError.js';
-import { HTTP_STATUS, JOB_STATUS } from '../config/constants.js';
-import { sanitizeJobStatus, sanitizeDepartment, sanitizeLocation } from '../utils/querySanitizer.js';
+import { ApiError } from '@skillsync/shared/http';
+import { HTTP_STATUS, JOB_STATUS } from '@skillsync/shared/constants';
+import { sanitizeJobStatus, sanitizeDepartment, sanitizeLocation } from '@skillsync/shared/security';
 
 class JobService {
   /**
