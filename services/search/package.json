@@ -1,0 +1,12 @@
+{
+  "name": "@skillsync/search-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SkillSync read-only search service",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js"
+  }
+}

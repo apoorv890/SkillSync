@@ -1,0 +1,12 @@
+{
+  "name": "@skillsync/applications-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SkillSync applications and candidates service",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js"
+  }
+}
