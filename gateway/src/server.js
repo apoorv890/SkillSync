@@ -10,6 +10,8 @@ import logger from '@skillsync/shared/logger';
 const PORT = Number(process.env.GATEWAY_PORT || 5000);
 const API_UPSTREAM =
   process.env.API_UPSTREAM_URL || 'http://127.0.0.1:5500';
+const AUTH_UPSTREAM =
+  process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:5001';
 
 const corsOptions = {
   origin(origin, callback) {
@@ -46,38 +48,55 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'OK',
     service: 'gateway',
-    upstream: API_UPSTREAM,
+    apiUpstream: API_UPSTREAM,
+    authUpstream: AUTH_UPSTREAM,
     timestamp: new Date().toISOString()
   });
 });
 
 app.use('/api', apiLimiter);
 
-const proxy = createProxyMiddleware({
+const proxyError =
+  (label) => (err, _req, res) => {
+    logger.error(`Gateway proxy error (${label}): ${err.message}`);
+    if (!res.headersSent) {
+      res.status(502).json({
+        success: false,
+        message: `Bad gateway — ${label} unavailable`
+      });
+    }
+  };
+
+const authProxy = createProxyMiddleware({
+  target: AUTH_UPSTREAM,
+  changeOrigin: true,
+  proxyTimeout: 120000,
+  timeout: 120000,
+  logLevel: 'warn',
+  onError: proxyError('auth service')
+});
+
+const apiProxy = createProxyMiddleware({
   target: API_UPSTREAM,
   changeOrigin: true,
   proxyTimeout: 120000,
   timeout: 120000,
   logLevel: 'warn',
-  onError(err, _req, res) {
-    logger.error(`Gateway proxy error: ${err.message}`);
-    if (!res.headersSent) {
-      res.status(502).json({
-        success: false,
-        message: 'Bad gateway — upstream API unavailable'
-      });
-    }
-  }
+  onError: proxyError('API')
 });
 
 // Do not mount body parsers before proxy — preserves multipart and JSON streams
-app.use('/api', proxy);
+app.use('/api/auth', authProxy);
+app.use('/api/users', authProxy);
+app.use('/api', apiProxy);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
 app.listen(PORT, () => {
-  logger.info(`SkillSync API gateway listening on port ${PORT} (proxy → ${API_UPSTREAM})`);
+  logger.info(
+    `SkillSync API gateway listening on port ${PORT} (auth → ${AUTH_UPSTREAM}, api → ${API_UPSTREAM})`
+  );
   console.log(`Gateway running on port ${PORT}`);
 });

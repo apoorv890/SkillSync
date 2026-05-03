@@ -1,48 +1,46 @@
-import mongoose from 'mongoose';
-import { extractBearerToken, verifyToken } from '@skillsync/shared/jwt';
-import * as authClient from '../services/authClient.js';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import TokenService from '../services/TokenService.js';
 
+// Middleware to verify JWT token
 export const authenticate = async (req, res, next) => {
   try {
-    const token = extractBearerToken(req.header('Authorization'));
-
+    const token = TokenService.extractTokenFromHeader(req.header('Authorization'));
+    
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const isBlacklisted = await authClient.isTokenBlacklisted(token);
+    // Check if token is blacklisted
+    const isBlacklisted = await TokenService.isTokenBlacklisted(token);
     if (isBlacklisted) {
       return res.status(401).json({ error: 'Token has been revoked' });
     }
 
-    const decoded = verifyToken(token);
-
+    // Verify token
+    const decoded = TokenService.verifyToken(token);
+    
+    // Ensure it's an access token (not refresh token)
+    // Allow tokens without type field for backward compatibility
     if (decoded.type && decoded.type !== 'access') {
       return res.status(401).json({ error: 'Invalid token type' });
     }
 
-    const row = await authClient.getUserById(decoded.userId);
-    if (!row) {
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    const oid = new mongoose.Types.ObjectId(String(row.id));
-    req.user = {
-      _id: oid,
-      id: oid,
-      userId: String(row.id),
-      email: row.email,
-      role: row.role,
-      fullName: row.fullName,
-      profilePhotoUrl: row.profilePhotoUrl
-    };
-    req.userId = oid;
+    req.user = user;
+    req.userId = user._id;
     next();
-  } catch {
+  } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
   }
 };
 
+// Middleware to check if user is admin
 export const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -55,6 +53,7 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Middleware to check if user is authenticated (admin or user)
 export const requireAuth = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });

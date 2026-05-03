@@ -1,6 +1,6 @@
 import Application from '../models/Application.js';
 import Job from '../models/Job.js';
-import User from '../models/User.js';
+import * as authClient from './authClient.js';
 import S3Service from './S3Service.js';
 import ResumeAnalysisService from './ResumeAnalysisService.js';
 import logger from '@skillsync/shared/logger';
@@ -54,8 +54,8 @@ class ApplicationService {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'You have already applied for this job');
       }
 
-      // Get candidate details
-      const user = await User.findById(sanitizedCandidateId);
+      // Get candidate details from auth service
+      const user = await authClient.getUserById(sanitizedCandidateId);
       if (!user) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
       }
@@ -200,22 +200,36 @@ class ApplicationService {
       }
       
       const applications = await Application.find({ jobId: sanitizedJobId })
-        .populate('userId', 'fullName email')
         .select('candidateInfo atsScore status appliedAt resume.fileName resume.fileSize userId')
         .sort({ 'atsScore.score': -1, appliedAt: -1 });
 
+      const userIds = [...new Set(applications.map((a) => String(a.userId)))];
+      const userMap = new Map();
+      await Promise.all(
+        userIds.map(async (uid) => {
+          const u = await authClient.getUserById(uid);
+          if (u) {
+            userMap.set(uid, u);
+          }
+        })
+      );
+
       // Format response with ATS data
-      const formattedApplications = applications.map(app => ({
-        _id: app._id,
-        candidateName: app.candidateInfo?.name || app.userId?.fullName || 'N/A',
-        candidateEmail: app.candidateInfo?.email || app.userId?.email || 'N/A',
-        atsScore: app.atsScore?.score || null,
-        atsStatus: app.atsScore?.status || 'pending',
-        atsError: app.atsScore?.error || null,
-        appliedAt: app.appliedAt,
-        status: app.status,
-        resumeFileName: app.resume?.fileName
-      }));
+      const formattedApplications = applications.map((app) => {
+        const uid = String(app.userId);
+        const u = userMap.get(uid);
+        return {
+          _id: app._id,
+          candidateName: app.candidateInfo?.name || u?.fullName || 'N/A',
+          candidateEmail: app.candidateInfo?.email || u?.email || 'N/A',
+          atsScore: app.atsScore?.score || null,
+          atsStatus: app.atsScore?.status || 'pending',
+          atsError: app.atsScore?.error || null,
+          appliedAt: app.appliedAt,
+          status: app.status,
+          resumeFileName: app.resume?.fileName
+        };
+      });
 
       logCompact(req, `Found ${formattedApplications.length} applications`, { jobId });
       return formattedApplications;
