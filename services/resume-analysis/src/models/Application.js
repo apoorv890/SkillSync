@@ -85,7 +85,6 @@ const applicationSchema = new mongoose.Schema({
   }
 });
 
-// Compound index to ensure one application per user per job
 applicationSchema.index({ userId: 1, jobId: 1 }, { unique: true });
 applicationSchema.index({ jobId: 1 });
 applicationSchema.index({ userId: 1 });

@@ -1,2 +1,18 @@
-// resume-analysis-service - implementation arrives in Phase 6.
-console.log('@skillsync/resume-analysis-service: scaffold only - implementation pending in Phase 6');
+import app, { connectDB, logger } from './app.js';
+
+const PORT = Number(process.env.RESUME_ANALYSIS_SERVICE_PORT || 5004);
+
+const start = async () => {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      logger.info(`Resume analysis service listening on port ${PORT}`);
+      console.log(`Resume analysis service running on port ${PORT}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start resume-analysis service:', error);
+    process.exit(1);
+  }
+};
+
+start();

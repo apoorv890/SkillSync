@@ -2,7 +2,7 @@ import Application from '../models/Application.js';
 import * as authClient from './authClient.js';
 import * as jobsClient from './jobsClient.js';
 import S3Service from './S3Service.js';
-import ResumeAnalysisService from './ResumeAnalysisService.js';
+import * as resumeAnalysisClient from './resumeAnalysisClient.js';
 import logger from '@skillsync/shared/logger';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
 import { ApiError } from '@skillsync/shared/http';
@@ -87,7 +87,8 @@ class ApplicationService {
 
       // Trigger async ATS analysis (non-blocking)
       setImmediate(() => {
-        ResumeAnalysisService.analyzeResume(application._id.toString(), req)
+        resumeAnalysisClient
+          .triggerAnalyze(application._id.toString())
           .catch((error) => {
             logger.error(`ATS analysis failed: ${error.message}`);
           });

@@ -1,5 +1,5 @@
 import ApplicationService from '../services/ApplicationService.js';
-import ResumeAnalysisService from '../services/ResumeAnalysisService.js';
+import * as resumeAnalysisClient from '../services/resumeAnalysisClient.js';
 import Application from '../models/Application.js';
 import logger from '@skillsync/shared/logger';
 import { catchAsync, ApiResponse, ApiError } from '@skillsync/shared/http';
@@ -138,7 +138,7 @@ class ApplicationController {
 
     logger.info('Manual ATS analysis retry requested', { applicationId });
 
-    const score = await ResumeAnalysisService.retryAnalysis(applicationId);
+    const score = await resumeAnalysisClient.retryAnalysis(applicationId);
 
     return ApiResponse.success(res, 'ATS analysis completed successfully', {
       atsScore: score
@@ -152,7 +152,7 @@ class ApplicationController {
   getATSStatus = catchAsync(async (req, res) => {
     const { applicationId } = req.params;
 
-    const status = await ResumeAnalysisService.getAnalysisStatus(applicationId);
+    const status = await resumeAnalysisClient.getAnalysisStatus(applicationId);
 
     return ApiResponse.success(res, 'ATS status retrieved successfully', status);
   });
