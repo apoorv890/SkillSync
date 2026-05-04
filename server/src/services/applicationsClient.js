@@ -51,46 +51,6 @@ export async function getLegacyUserDashboardCandidateMock() {
   return parseJson(res);
 }
 
-export async function searchCandidatesFiltered(params) {
-  const res = await fetch(`${BASE}/api/internal/search/candidates-filtered`, {
-    method: 'POST',
-    headers: internalHeaders(),
-    body: JSON.stringify(params || {})
-  });
-  if (!res.ok) {
-    throw new Error(`applications candidate search failed: ${res.status}`);
-  }
-  const data = await parseJson(res);
-  return data.candidates || [];
-}
-
-export async function unifiedSearchCandidates(sanitizedQuery) {
-  const res = await fetch(`${BASE}/api/internal/search/unified-candidates`, {
-    method: 'POST',
-    headers: internalHeaders(),
-    body: JSON.stringify({ sanitizedQuery })
-  });
-  if (!res.ok) {
-    throw new Error(`applications unified candidates failed: ${res.status}`);
-  }
-  const data = await parseJson(res);
-  return data.candidates || [];
-}
-
-export async function getCandidateSuggestions(prefix, jobId) {
-  const url = new URL(`${BASE}/api/internal/search/candidate-suggestions`);
-  url.searchParams.set('prefix', prefix ?? '');
-  if (jobId) {
-    url.searchParams.set('jobId', jobId);
-  }
-  const res = await fetch(url, { headers: internalHeaders() });
-  if (!res.ok) {
-    return [];
-  }
-  const data = await parseJson(res);
-  return data.suggestions || [];
-}
-
 export async function getApplicationAtsStatus(applicationId) {
   const res = await fetch(
     `${BASE}/api/internal/applications/${encodeURIComponent(applicationId)}/ats`,

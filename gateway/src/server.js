@@ -16,6 +16,8 @@ const JOBS_UPSTREAM =
   process.env.JOBS_SERVICE_URL || 'http://127.0.0.1:5002';
 const APPLICATIONS_UPSTREAM =
   process.env.APPLICATIONS_SERVICE_URL || 'http://127.0.0.1:5003';
+const SEARCH_UPSTREAM =
+  process.env.SEARCH_SERVICE_URL || 'http://127.0.0.1:5005';
 
 const corsOptions = {
   origin(origin, callback) {
@@ -56,6 +58,7 @@ app.get('/health', (_req, res) => {
     authUpstream: AUTH_UPSTREAM,
     jobsUpstream: JOBS_UPSTREAM,
     applicationsUpstream: APPLICATIONS_UPSTREAM,
+    searchUpstream: SEARCH_UPSTREAM,
     timestamp: new Date().toISOString()
   });
 });
@@ -100,6 +103,15 @@ const applicationsProxy = createProxyMiddleware({
   onError: proxyError('applications service')
 });
 
+const searchProxy = createProxyMiddleware({
+  target: SEARCH_UPSTREAM,
+  changeOrigin: true,
+  proxyTimeout: 120000,
+  timeout: 120000,
+  logLevel: 'warn',
+  onError: proxyError('search service')
+});
+
 const apiProxy = createProxyMiddleware({
   target: API_UPSTREAM,
   changeOrigin: true,
@@ -112,6 +124,7 @@ const apiProxy = createProxyMiddleware({
 // Do not mount body parsers before proxy — preserves multipart and JSON streams
 app.use('/api/applications', applicationsProxy);
 app.use('/api/candidates', applicationsProxy);
+app.use('/api/search', searchProxy);
 app.use('/api/jobs', jobsProxy);
 app.use('/api/auth', authProxy);
 app.use('/api/users', authProxy);
@@ -123,7 +136,7 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   logger.info(
-    `SkillSync API gateway listening on port ${PORT} (apps → ${APPLICATIONS_UPSTREAM}, jobs → ${JOBS_UPSTREAM}, auth → ${AUTH_UPSTREAM}, api → ${API_UPSTREAM})`
+    `SkillSync API gateway listening on port ${PORT} (apps → ${APPLICATIONS_UPSTREAM}, search → ${SEARCH_UPSTREAM}, jobs → ${JOBS_UPSTREAM}, auth → ${AUTH_UPSTREAM}, api → ${API_UPSTREAM})`
   );
   console.log(`Gateway running on port ${PORT}`);
 });
