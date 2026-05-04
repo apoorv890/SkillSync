@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Download, Loader2 } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -15,12 +15,23 @@ import { ApplicationStatusDropdown } from './ApplicationStatusDropdown';
 import { toast } from 'sonner';
 import { useApi } from '../hooks/useApi';
 
-const ApplicantsList = ({ jobId }) => {
+type ApplicantRow = {
+  _id: string;
+  candidateName?: string;
+  candidateEmail?: string;
+  atsScore?: number | null;
+  atsStatus?: string;
+  status?: string;
+};
+
+type ApplicantsApiResponse = { data?: ApplicantRow[] } | ApplicantRow[];
+
+const ApplicantsList = ({ jobId }: { jobId: string }) => {
   const [downloadingResume, setDownloadingResume] = useState(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
   // Fetch applicants with deduplication
-  const { data: applicantsResponse, loading } = useApi<any>(
+  const { data: applicantsResponse, loading } = useApi<ApplicantsApiResponse>(
     `/applications/job/${jobId}/all`,
     {
       refetchTrigger,
@@ -28,7 +39,9 @@ const ApplicantsList = ({ jobId }) => {
     }
   );
 
-  const applicants = applicantsResponse?.data || applicantsResponse || [];
+  const applicants: ApplicantRow[] = Array.isArray(applicantsResponse)
+    ? applicantsResponse
+    : applicantsResponse?.data ?? [];
 
   const handleStatusChange = async (applicationId, newStatus) => {
     try {
@@ -87,13 +100,7 @@ const ApplicantsList = ({ jobId }) => {
     );
   }
 
-  const getScoreBadgeVariant = (score) => {
-    if (score >= 80) return 'default';
-    if (score >= 60) return 'secondary';
-    return 'outline';
-  };
-
-  const getScoreColor = (score) => {
+  const getScoreColor = (score: number) => {
     if (score >= 80) return 'bg-green-500 hover:bg-green-600';
     if (score >= 60) return 'bg-yellow-500 hover:bg-yellow-600';
     return 'bg-red-500 hover:bg-red-600';
@@ -165,7 +172,6 @@ const ApplicantsList = ({ jobId }) => {
                     <ApplicationStatusDropdown
                       currentStatus={app.status || 'Under Review'}
                       onStatusChange={(newStatus) => handleStatusChange(app._id, newStatus)}
-                      applicationId={app._id}
                     />
                   </TableCell>
                 </TableRow>

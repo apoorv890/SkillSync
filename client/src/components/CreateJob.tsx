@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Briefcase, MapPin, FileText, List } from 'lucide-react';
+import { ArrowLeft, Briefcase, MapPin, List } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Input } from './ui/input';
@@ -45,12 +45,12 @@ const CreateJob = () => {
     if (!bulletPoints[field]) {
       // Convert to bullet points
       const lines = currentValue.split('\n').filter(line => line.trim());
-      const bulletText = lines.map(line => `• ${line.replace(/^[•\-\*]\s*/, '')}`).join('\n');
+      const bulletText = lines.map(line => `• ${line.replace(/^[•\-*]\s*/, '')}`).join('\n');
       setValue(field, bulletText);
     } else {
       // Remove bullet points
       const lines = currentValue.split('\n');
-      const plainText = lines.map(line => line.replace(/^[•\-\*]\s*/, '')).join('\n');
+      const plainText = lines.map(line => line.replace(/^[•\-*]\s*/, '')).join('\n');
       setValue(field, plainText);
     }
   };

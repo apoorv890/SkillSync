@@ -43,7 +43,9 @@ export default function ProfileHeader() {
     };
 
     fetchProfile();
-  }, []); // Run once on mount
+    // Intentionally run once on mount; adding user/setUser would refetch on every auth change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePhotoUpdate = (photoUrl: string | null) => {
     if (user) {
@@ -61,7 +63,7 @@ export default function ProfileHeader() {
 
   if (!user) return null;
 
-  const currentPhotoUrl = (user as any).profilePhotoUrl || null;
+  const currentPhotoUrl = user.profilePhotoUrl ?? null;
 
   return (
     <Card>

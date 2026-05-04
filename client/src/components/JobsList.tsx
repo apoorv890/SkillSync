@@ -36,7 +36,7 @@ const JobsList = () => {
   });
 
   // Use API hook with deduplication and caching
-  const { data: jobsResponse, loading } = useApi<any>('/jobs', {
+  const { data: jobsResponse, loading } = useApi<{ data?: unknown[] } | unknown[]>('/jobs', {
     refetchTrigger: refreshTrigger,
     cacheTime: 3 * 60 * 1000, // 3 minutes cache for jobs list
   });

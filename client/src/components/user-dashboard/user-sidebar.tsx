@@ -16,10 +16,8 @@ import {
 } from "../ui/sidebar"
 import { NavMain } from "../admin-dashboard/nav-main"
 import { NavUser } from "../admin-dashboard/nav-user"
-import { useAuth } from "../../hooks/useAuth"
 
 export function UserSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth()
   const location = useLocation()
 
   const navMain = [

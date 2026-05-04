@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, Users, FileText, TrendingUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { useDashboardRefresh } from '../../contexts/DashboardContext';
 
 const AdminDashboard = () => {
