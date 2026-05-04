@@ -57,5 +57,5 @@ Convert the backend into 7 services + 1 API gateway, deployed independently:
 
 ## References
 
-- [SKILLSYNC_OVERVIEW.md](../../SKILLSYNC_OVERVIEW.md) - the original handoff doc that catalogues the monolith's surface.
+- [SKILLSYNC_OVERVIEW.md](../../SKILLSYNC_OVERVIEW.md) — living architecture and operations reference for the gateway + services layout.
 - Refactor plan: `c:/Users/thexu/.cursor/plans/skillsync_microservices_refactor_3dea5a82.plan.md` (lives outside the repo).
