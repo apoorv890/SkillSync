@@ -2,11 +2,13 @@ import mongoose from 'mongoose';
 import Application from '../models/Application.js';
 import Candidate from '../models/Candidate.js';
 import * as jobsClient from './jobsClient.js';
+import * as authClient from './authClient.js';
 import {
   isLikelyJobTitle,
   createExactMatchRegex,
   createPartialMatchRegex,
-  normalizeQuery
+  normalizeQuery,
+  escapeRegExp
 } from '../utils/searchUtils.js';
 import {
   sanitizeSearchQuery,
@@ -46,6 +48,79 @@ async function attachJobsToApplications(apps) {
     ...a,
     jobId: map.get(String(a.jobId)) || a.jobId
   }));
+}
+
+function normalizeEmail(email) {
+  if (!email || typeof email !== 'string') {
+    return null;
+  }
+  const t = email.trim().toLowerCase();
+  return t || null;
+}
+
+/**
+ * Candidate rows are per job; match the logged-in user via auth email and/or
+ * application candidateInfo emails, scoped to jobs they applied to.
+ */
+async function countInterviewsScheduledForUser(userId) {
+  const oid = new mongoose.Types.ObjectId(String(userId));
+
+  const apps = await Application.find({ userId: oid })
+    .select('jobId candidateInfo.email')
+    .lean();
+
+  const jobIdStrings = [
+    ...new Set(
+      apps
+        .map((a) => a.jobId)
+        .filter(Boolean)
+        .map((jid) => String(jid))
+    )
+  ];
+
+  if (!jobIdStrings.length) {
+    return 0;
+  }
+
+  const emails = new Set();
+  try {
+    const row = await authClient.getUserById(String(userId));
+    const u = normalizeEmail(row?.email);
+    if (u) {
+      emails.add(u);
+    }
+  } catch {
+    // continue with application-stored emails only
+  }
+
+  for (const a of apps) {
+    const c = normalizeEmail(a.candidateInfo?.email);
+    if (c) {
+      emails.add(c);
+    }
+  }
+
+  if (!emails.size) {
+    return 0;
+  }
+
+  const jobIdsAsOid = jobIdStrings
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .map((id) => new mongoose.Types.ObjectId(id));
+
+  if (!jobIdsAsOid.length) {
+    return 0;
+  }
+
+  const emailOr = [...emails].map((em) => ({
+    email: new RegExp(`^${escapeRegExp(em)}$`, 'i')
+  }));
+
+  return Candidate.countDocuments({
+    interviewScheduled: true,
+    jobId: { $in: jobIdsAsOid },
+    $or: emailOr
+  });
 }
 
 export async function getUserDashboardApplicationStats(userId) {
@@ -98,6 +173,8 @@ export async function getUserDashboardApplicationStats(userId) {
 
   const recentApplications = await attachJobsToApplications(recentApplicationsRaw);
 
+  const interviewsScheduled = await countInterviewsScheduledForUser(String(userId));
+
   return {
     totalApplications,
     activeApplications,
@@ -105,7 +182,8 @@ export async function getUserDashboardApplicationStats(userId) {
     rejectedApplications,
     averageScore,
     applicationsByStatus,
-    recentApplications
+    recentApplications,
+    interviewsScheduled
   };
 }
 

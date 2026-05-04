@@ -67,7 +67,7 @@ router.get('/user-stats', authenticate, async (req, res) => {
       totalApplications: appStats.totalApplications ?? 0,
       pendingApplications: appStats.activeApplications ?? 0,
       rejectedApplications: appStats.rejectedApplications ?? 0,
-      interviewsScheduled: 0
+      interviewsScheduled: appStats.interviewsScheduled ?? 0
     });
   } catch (error) {
     console.error('Error fetching user-stats:', error);
