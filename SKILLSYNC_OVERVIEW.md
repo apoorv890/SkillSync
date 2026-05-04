@@ -1,9 +1,8 @@
 # SkillSync — Application Overview
 
-> A handoff document describing the SkillSync codebase: architecture, tech stack,
-> data, APIs, security, external dependencies, and the natural seams where it
-> can be split into microservices. Share this with the team that owns the
-> application you plan to merge with.
+> Handoff document: architecture, data, public API surface, security, and
+> **inter-service contracts** after the backend was split into the gateway +
+> services (2026 refactor). For decision history see `docs/adr/0001-microservices-split.md`.
 
 SkillSync is an **AI-powered recruitment platform**. It has two sides:
 
@@ -18,33 +17,38 @@ The repo ships a **Vite SPA** (`client/`) and a **decomposed backend**: an API *
 
 1. [Tech Stack](#1-tech-stack)
 2. [High-Level Architecture (today)](#2-high-level-architecture-today)
-3. [Backend Folder Layout](#3-backend-folder-layout)
-4. [Data Model (MongoDB collections)](#4-data-model-mongodb-collections)
-5. [REST API](#5-rest-api-mounted-under-api-in-serversrcroutesindexjs)
-6. [Service Layer](#6-service-layer-the-business-logic-worth-porting)
-7. [Security Model](#7-security-model)
-8. [External Dependencies](#8-external-dependencies-the-outside-the-box-surface)
-9. [Frontend Folder Layout](#9-frontend-folder-layout)
-10. [Cross-Cutting Concerns to Preserve When Splitting](#10-cross-cutting-concerns-to-preserve-when-splitting)
-11. [Recommended Microservice Decomposition](#11-recommended-microservice-decomposition)
-12. [Quick Reference for the Receiving Team](#12-quick-reference-for-the-receiving-team)
+3. [Backend folder layout (monorepo)](#3-backend-folder-layout-monorepo)
+4. [Data model (MongoDB collections)](#4-data-model-mongodb-collections)
+5. [REST API (via gateway)](#5-rest-api-via-gateway)
+6. [Where the logic lives now](#6-where-the-logic-lives-now)
+7. [Security model](#7-security-model)
+8. [External dependencies](#8-external-dependencies-the-outside-the-box-surface)
+9. [Frontend folder layout](#9-frontend-folder-layout)
+10. [Cross-cutting contracts](#10-cross-cutting-contracts)
+11. [Implemented service map](#11-implemented-service-map)
+12. [Quick reference](#12-quick-reference)
 
 ---
 
 ## 1. Tech Stack
 
-### Backend (`server/`)
-- **Runtime**: Node.js 18+, ES Modules (`"type": "module"`)
-- **Framework**: Express 4
-- **Database**: MongoDB (Mongoose 8)
-- **Auth**: JWT (access + refresh tokens), bcryptjs, token blacklist in DB
-- **AI**: `groq-sdk` → `llama-3.3-70b-versatile` (also legacy `llama3-70b-8192` in `CandidateController.js`)
-- **Storage**: AWS S3 (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`)
-- **File parsing**: `pdf-parse`, `mammoth` (DOCX), `pdf2pic`
-- **Security middleware**: `helmet`, `cors`, `csurf` (CSRF), `express-rate-limit`, `express-validator`
-- **Logging**: Winston
-- **Email**: `nodemailer` (currently OTP is just `console.log`'d)
-- **Uploads**: `multer` (10 MB cap, PDF/DOCX)
+### Shared (`shared/` → npm `@skillsync/shared`)
+- **Runtime**: Node.js 22+ recommended, ES modules
+- **DB helper**: `connectDB` / Mongoose for services that own data
+- **Cross-cutting**: Winston logger factory, `ApiError` / `ApiResponse`, `catchAsync`, JWT verify helpers, `requireInternal` / auth-related middlewares, `sanitizeObjectId` and other query sanitizers from `shared/security`
+
+### Per-service backends (`gateway/`, `services/*`)
+Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JWT_SECRET` where needed, and service-specific deps:
+
+| Area | Typical packages | Lives in |
+|------|-------------------|----------|
+| Auth / users | `mongoose`, `bcryptjs`, `jsonwebtoken`, `multer`, S3 for avatars | `services/auth` |
+| Jobs | `mongoose`, job CRUD + internal read/search helpers | `services/jobs` |
+| Applications + candidates | `mongoose`, `multer`, AWS S3, `groq-sdk` (candidate upload flow), internal routes for ATS + dashboard reads | `services/applications` |
+| Resume analysis | `pdf-parse`, `mammoth`, `groq-sdk` (no Mongoose for `Application` — HTTP back to applications) | `services/resume-analysis` |
+| Search | `mongoose` read-only models on `jobs` + `candidates` collections | `services/search` |
+| Dashboard | HTTP clients only (no Mongo in-process) | `services/dashboard` |
+| Gateway | `http-proxy-middleware`, `express-rate-limit`, `cookie-parser`, `csurf` for **CSRF token issuance** | `gateway` |
 
 ### Frontend (`client/`)
 - **Framework**: React 18 + TypeScript + Vite (port 3000)
@@ -55,77 +59,56 @@ The repo ships a **Vite SPA** (`client/`) and a **decomposed backend**: an API *
 - **HTTP**: Custom fetch wrapper in `client/src/lib/apiClient.ts` — caching, request deduplication, JWT auth, CSRF token
 
 ### Process orchestration (root `package.json`)
-- `concurrently` runs `client` (3000) and `server` (5000) together via `npm run dev`.
+- `concurrently` runs **client** (3000), **gateway** (5000), and all **services** via `npm run dev`.
+- **Docker**: `docker-compose.yml` + root `Dockerfile` (`npm run dev:docker`, `npm run smoke`). See repo **README.md**.
 
 ---
 
 ## 2. High-Level Architecture (today)
 
 ```
-[ React SPA :3000 ]  --HTTP/JSON-->  [ Express API :5000 ]  --->  MongoDB
-       ^                                       |
-       |                                       +--> AWS S3 (resumes, profile photos)
-       +-- localStorage(JWT)                   +--> Groq AI  (LLaMA 3.3 70B scoring)
-       +-- Cookie(CSRF)                        +--> SMTP     (nodemailer / OTP, mostly stubbed)
+[ React SPA :3000 ]
+       |  HTTP/JSON  (apiClient → http://localhost:5000/api/…)
+       v
+[ Gateway :5000 ] ──proxy──> [ auth:5001 ] [ jobs:5002 ] [ applications:5003 ]
+       |  CSRF cookie + /api/csrf-token          |              |
+       |                                         +--> MongoDB (users, jobs, …)
+       |                                         |
+       +──────────────proxy────────────────────> [ search:5005 ] [ dashboard:5006 ]
+       |                                         (read Mongo)   (HTTP aggregate)
+       +──────────────proxy────────────────────> [ resume-analysis:5004 ]
+                                                     └──> Groq; PATCH applications internal
 ```
 
-- The Vite dev server proxies `/api/*` → `http://localhost:5000` (`client/vite.config.ts`).
-- Production CORS is locked down with the `ALLOWED_ORIGINS` env var.
+- **Ingress**: only the **gateway** is exposed to the browser on **5000** for `/api/*` (plus gateway `/health`).
+- **MongoDB**: auth, jobs, applications, and search connect with `MONGODB_URI`; resume-analysis does not own the `applications` collection.
+- **S3 / Groq**: used from **applications** (resumes, candidate bulk flow) and **resume-analysis** (parse + score pipeline) per ADR.
+- Vite still targets **`http://localhost:5000`** for API calls (`client` config / hardcoded URLs in some components).
+- **CORS**: `ALLOWED_ORIGINS` on each service + gateway.
 
 ---
 
-## 3. Backend Folder Layout
+## 3. Backend folder layout (monorepo)
 
 ```
-server/
-├── server.js                 # Entrypoint: loads .env, connects DB, starts Express, graceful shutdown
-└── src/
-    ├── app.js                # Express app: helmet, cors, body parsers, rate limit, /api routes, 404, errorHandler
-    ├── config/
-    │   ├── database.js       # mongoose.connect(MONGODB_URI)
-    │   ├── aws.js            # S3 client config
-    │   ├── logger.js         # Winston logger
-    │   ├── envValidation.js  # Fail-fast on missing required env vars
-    │   └── constants.js      # HTTP_STATUS, APPLICATION_STATUS, JOB_STATUS, etc.
-    ├── routes/               # 1 file per resource, mounted in routes/index.js
-    ├── controllers/          # Thin layer: parse req, call service, return ApiResponse
-    ├── services/             # All business logic (see §6)
-    ├── middleware/           # auth, csrf, validation, rateLimiter, upload, errorHandler, requestLogger
-    ├── models/               # Mongoose schemas (see §4)
-    ├── utils/                # ApiError, ApiResponse, catchAsync, querySanitizer, timingSafe, loggerHelper, searchUtils
-    └── scripts/              # seedJobs, removeDuplicates, checkJobs, testAnalytics
+shared/src/                    # @skillsync/shared — logger, db, jwt, middleware, security, constants
+gateway/src/
+├── loadEnv.js                 # Loads repo root .env
+├── server.js                  # CORS, helmet, cookie-parser(JWT_SECRET), rate limit, proxies, GET /api/csrf-token
+└── middleware/csrf.js         # csurf instance used only for CSRF token route
+
+services/<name>/src/
+├── loadEnv.js                 # Repo root .env (path ../../../.env from service src)
+├── app.js                     # Express stack + /health + routes + internal routes where applicable
+├── server.js                  # listen(PORT), connectDB() if service owns Mongo
+├── config/envValidation.js
+├── routes/                    # HTTP routes for that bounded context
+├── controllers/, services/, models/   # as needed per service
+├── middleware/                # auth, csrf (verify on mutating routes), upload, …
+└── utils/
 ```
 
-The Express app is built in `server/src/app.js`:
-
-```js
-// server/src/app.js (lines 22–71)
-const app = express();
-
-// CORS configuration - restrict to allowed origins
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(helmet());
-app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use('/api', apiLimiter);
-app.use(requestLogger);
-app.use(attachLogPrefix);
-app.use('/api', routes);
-```
+Gateway **does not** mount business routes; it forwards path prefixes to the owning service (see §11).
 
 ---
 
@@ -139,27 +122,25 @@ app.use('/api', routes);
 | `candidates` | Admin-uploaded resumes (separate flow from `applications`) | `jobId`, `name`, `email`, `atsScore`, `matchExplanation`, `resumeText`, `resumeUrl`, `callScheduled`, `skills[]`. Has its own text index. |
 | `tokenblacklists` | Revoked JWTs (after logout) | `token`, `userId`, `reason`, TTL'd by JWT expiry. |
 
-> Note: There are **two parallel scoring flows** — `Application` (user-driven) and `Candidate` (admin-uploads-PDFs-in-bulk). When you split into microservices, decide whether to keep both or unify.
+> Note: Two parallel flows remain — **`applications`** (user applies to a job) and **`candidates`** (admin bulk upload per job), both owned by **applications-service**.
 
 ---
 
-## 5. REST API (mounted under `/api` in `server/src/routes/index.js`)
+## 5. REST API (via gateway)
 
-```js
-// server/src/routes/index.js (lines 22–39)
-router.use('/auth', authRoutes);
-router.use('/jobs', jobRoutes);
-router.use('/applications', applicationRoutes);
-router.use('/candidates', candidateRoutes);
-router.use('/search', searchRoutes);
-router.use('/dashboard', dashboardRoutes);
-router.use('/analytics', analyticsRoutes);
-router.use('/users', profileRoutes);
+All paths below are under **`http://<gateway>:5000/api/...`**. The gateway (`gateway/src/server.js`) proxies:
 
-router.get('/health', ...)
-```
+| Prefix | Upstream |
+|--------|----------|
+| `/api/auth`, `/api/users` | auth-service |
+| `/api/jobs` | jobs-service |
+| `/api/applications`, `/api/candidates` | applications-service |
+| `/api/search` | search-service |
+| `/api/dashboard`, `/api/analytics` | dashboard-service |
 
-### `/api/auth` (`authRoutes.js`)
+Implemented locally on the gateway (not proxied): **`GET /api/csrf-token`**, **`GET /health`**.
+
+### `/api/auth` (auth-service)
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | POST | `/register` | – | Create user (always role `user`); returns `{accessToken, refreshToken, user}` |
@@ -171,80 +152,69 @@ router.get('/health', ...)
 | POST | `/verify-otp` | – | Verifies OTP (timing-safe) |
 | POST | `/reset-password` | – | Resets password with OTP |
 
-### `/api/jobs` (`jobRoutes.js`)
+### `/api/jobs` (jobs-service)
 - `GET /`, `GET /search`, `GET /:id` — public
 - `POST /`, `PUT /:id`, `DELETE /:id` — admin + CSRF
 
-### `/api/applications` (`applicationRoutes.js`)
-- `POST /job/:jobId/apply` — JWT + CSRF + multer upload `resume`. Triggers async ATS analysis via `setImmediate`.
+### `/api/applications` (applications-service)
+- `POST /job/:jobId/apply` — JWT + CSRF + multer upload `resume`. Triggers ATS via **HTTP** to `resume-analysis-service` (fire-and-forget), which **PATCH**es applications internal routes when done.
 - `DELETE /job/:jobId/withdraw` — JWT + CSRF
 - `GET /job/:jobId/status`, `GET /my-applications` — JWT
 - Admin: `GET /job/:jobId/all`, `GET /resume/:applicationId` (returns S3 pre-signed URL, 1h), `POST /:id/retry-analysis`, `GET /:id/ats-status`, `PATCH /:id/status`
 
-### `/api/candidates` (`candidateRoutes.js`)
+### `/api/candidates` (applications-service)
 - `GET /job/:id` — list candidates for a job
 - `POST /job/:id/upload` — admin uploads up to 5 PDFs; runs Groq scoring **synchronously** and writes `Candidate` docs
 - `POST /:id/schedule` — admin marks interview scheduled
 
-### `/api/search` (`searchRoutes.js`)
+### `/api/search` (search-service)
 `/jobs`, `/candidates`, `/unified`, `/suggestions/jobs`, `/suggestions/candidates`
 
-### `/api/dashboard` (`dashboardRoutes.js`)
-- `GET /stats` — JWT, role-aware (admin returns job/candidate counts; user returns application counts + average ATS score + recent apps)
-- `GET /admin`, `GET /user` (legacy)
+### `/api/dashboard` (dashboard-service)
+- `GET /stats` — JWT, role-aware (admin vs user); aggregates **internal HTTP** to jobs + applications
+- `GET /admin`, `GET /user` (legacy-style payloads)
+- `GET /user-stats` — compact candidate stats (includes real **`interviewsScheduled`** when matched to `Candidate` rows)
 
-### `/api/analytics` (`analyticsRoutes.js`)
+### `/api/analytics` (dashboard-service)
 - `GET /` — JWT, jobs-created-per-day for ranges `7d`/`30d`/`90d`
 
-### `/api/users` (`profileRoutes.js`)
+### `/api/users` (auth-service)
 - `GET /profile`, `PUT /profile`
 - `POST /profile/photo`, `DELETE /profile/photo` — multipart, S3-backed, CSRF
 
-### Health/CSRF
-- `GET /api/csrf-token`
-- `GET /api/health`
+### Health / CSRF
+- **`GET /health`** — gateway only (JSON includes upstream hints).
+- **`GET /api/csrf-token`** — **gateway** issues the double-submit cookie + token (same `JWT_SECRET` as other services’ `cookie-parser`).
+
+Internal-only examples (not browser-facing): `GET/POST /api/internal/...` on auth, jobs, applications (see each service’s `internalRoutes` / `jobInternalReadService` / `internalReadService`).
 
 ---
 
-## 6. Service Layer (the "business logic" worth porting)
+## 6. Where the logic lives now
 
-`server/src/services/`:
+| Concern | Location (illustrative) |
+|---------|-------------------------|
+| JWT issue / refresh / blacklist, user profile, OTP | `services/auth` |
+| Job CRUD, job internal reads (by id, dashboard stats, analytics series) | `services/jobs` |
+| Applications + candidates, S3 resume lifecycle, ATS trigger to worker, internal ATS + dashboard reads for other services | `services/applications` |
+| PDF/DOCX text extraction, Groq scoring, PATCH back to applications | `services/resume-analysis` |
+| Full-text / unified search across Mongo `jobs` + `candidates` | `services/search` |
+| Dashboard + analytics aggregation over HTTP to jobs/applications + auth for JWT user | `services/dashboard` |
+| Proxy table, rate limit, CSRF **token** route | `gateway` |
 
-| Service | What it does |
-|---|---|
-| **`TokenService`** | Issues access (`type: 'access'`) and refresh (`type: 'refresh'`) JWTs, verifies, extracts from `Authorization`, blacklists. |
-| **`S3Service`** | `uploadResume`, `deleteFile`, `getPreSignedUrl`. |
-| **`s3ProfileService`** | Same for profile photos. |
-| **`JobService`** | CRUD + keyword extraction for `Job`. |
-| **`ApplicationService`** | Validates job is `active`, prevents duplicate applications, reactivates withdrawn ones, uploads resume to S3, creates `Application`, fires `ResumeAnalysisService.analyzeResume(...)` via `setImmediate`. |
-| **`ResumeParserService`** | Streams the resume from S3 by `s3Key`, runs `pdf-parse` or `mammoth`, returns text. **Text is never persisted** — only held in memory. |
-| **`ATSScoreService`** | Calls Groq with a strict prompt that returns `SKILLS/EXPERIENCE/EDUCATION/KEYWORDS/MATCH_SUMMARY`. Computes weighted total: **Skills 35% / Experience 30% / Education 15% / Keywords 20%**. Has retries with exponential backoff. |
-| **`ResumeAnalysisService`** | Orchestrator: load `Application` → set `atsScore.status='processing'` → parse → score with `ATSScoreService` → persist `score`, `breakdown`, `matchSummary`, `analyzedAt`, `status='completed'` (or `failed` + `error`). |
+**Resume text** is still processed only in memory inside **resume-analysis-service** and is not stored as a long-lived field in Mongo.
 
-### The candidate-side "apply" pipeline (key flow to integrate against)
-
-```js
-// server/src/services/ApplicationService.js (lines 88–94)
-// Trigger async ATS analysis (non-blocking)
-setImmediate(() => {
-  ResumeAnalysisService.analyzeResume(application._id.toString(), req)
-    .catch((error) => {
-      logger.error(`ATS analysis failed: ${error.message}`);
-    });
-});
-```
-
-This is the natural seam where you should plug in a **message queue** (RabbitMQ / Kafka / SQS / NATS) when going to microservices.
+If you add a **message broker** later, replace the “HTTP POST to resume-analysis” fire-and-forget path from applications with a consumer — contract stays: worker updates ATS fields on the application document via applications internal API.
 
 ---
 
 ## 7. Security Model
 
-- **JWT** — `Authorization: Bearer <accessToken>`. Verified by `authenticate` middleware which also rejects blacklisted tokens. `requireAdmin` enforces `role === 'admin'`.
-- **CSRF** — `csurf` cookie-based. Frontend fetches `/api/csrf-token` once and sends `X-CSRF-Token` on every state-changing request.
-- **Rate limiting** — global `apiLimiter` on `/api`; stricter `authLimiter` on login/register; `passwordResetLimiter`.
-- **Validation** — `express-validator` on registration, login, password reset, OTP verification, job create/update.
-- **Input sanitization** — `sanitizeObjectId` on every mongo lookup that takes user input (`utils/querySanitizer.js`).
+- **JWT** — `Authorization: Bearer <accessToken>`. Each service verifies signatures with **`JWT_SECRET`**. Blacklist checks for browser traffic go through **auth-service** (see gateway / auth integration). `requireAdmin` patterns live on the owning service.
+- **CSRF** — **Gateway** exposes `GET /api/csrf-token` (sets cookie). Mutating routes on **auth / jobs / applications** still use **`csurf`** to validate `X-CSRF-Token` + cookie on those processes.
+- **Rate limiting** — **`express-rate-limit`** on the gateway for `/api`; auth-service keeps tighter limiters on login/register/reset where configured.
+- **Validation** — `express-validator` (and similar) on routes that had it in **auth** / **jobs** / **applications** as ported from the monolith.
+- **Input sanitization** — `@skillsync/shared/security` (`sanitizeObjectId`, search sanitizers, etc.) on user-controlled ids and query params.
 - **Timing-safe comparisons** — `timingSafeOtpCompare` for OTP, dummy hash branches in `forgot-password`/`reset-password` to prevent account enumeration.
 - **Password rules** — `>=8 chars, upper, lower, digit, @$!%*?&` (enforced in `User` schema).
 - **CORS allowlist** — `ALLOWED_ORIGINS=comma,separated,list`.
@@ -257,11 +227,12 @@ This is the natural seam where you should plug in a **message queue** (RabbitMQ 
 
 | System | Used by | Env vars |
 |---|---|---|
-| **MongoDB** | All services | `MONGODB_URI` |
-| **AWS S3** | `S3Service`, `s3ProfileService` (resume + profile photo storage) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME` |
-| **Groq AI** | `ATSScoreService`, `CandidateController.processResumeWithLLM` | `GROQ_API_KEY` (model: `llama-3.3-70b-versatile`) |
-| **SMTP/Email** | `nodemailer` (currently logs OTP) | `EMAIL_SERVICE`, `EMAIL_USER`, `EMAIL_PASS` |
-| **JWT** | `TokenService` | `JWT_SECRET`, `JWT_EXPIRES_IN` |
+| **MongoDB** | auth, jobs, applications, search (each connects) | `MONGODB_URI` |
+| **AWS S3** | applications (resumes), auth (profile photos) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME` |
+| **Groq AI** | resume-analysis (ATS), applications (candidate bulk scoring) | `GROQ_API_KEY` (see code for model id) |
+| **SMTP/Email** | auth (OTP path; often console in dev) | `EMAIL_SERVICE`, `EMAIL_USER`, `EMAIL_PASS` |
+| **JWT** | all services that verify users | `JWT_SECRET`, `JWT_EXPIRES_IN` |
+| **Internal HMAC** | service-to-service `fetch` clients | `INTERNAL_SERVICE_TOKEN` (+ optional `*_SERVICE_URL` overrides) |
 
 > Heads-up: keep the repository root `.env` (gitignored) out of commits; it holds real credentials (Groq, AWS, etc.). Rotate any leaked keys before merging.
 
@@ -300,82 +271,50 @@ The frontend is a stateless SPA; it reaches the backend purely through `apiClien
 
 ---
 
-## 10. Cross-Cutting Concerns to Preserve When Splitting
+## 10. Cross-cutting contracts
 
-1. **Auth header propagation** — every request carries `Authorization: Bearer <jwt>` and a `csrf-token` cookie + `X-CSRF-Token` header.
-2. **Role enforcement** — `admin` vs `user` is asserted on the **server**, not the client. Any new service must validate `role` from the JWT claims (`{userId, email, role, type:'access'}`).
-3. **ObjectId sanitization** — keep `sanitizeObjectId` (or equivalent) in front of any DB lookup taking user input.
-4. **Resume text never persists** — `ResumeParserService` extracts text in memory only. Whatever your second app does, it should respect this contract.
-5. **Idempotency around duplicate applies** — the unique compound index `{userId, jobId}` plus reactivation logic in `ApplicationService.createApplication`.
-
----
-
-## 11. Recommended Microservice Decomposition
-
-The codebase already has clean service-layer seams. A reasonable split:
-
-| Microservice | Owns | Notes |
-|---|---|---|
-| **API Gateway** (new) | JWT validation, CSRF, rate limiting, request routing, CORS | Express + `http-proxy-middleware`, or Kong/NGINX. The React SPA only ever talks to this. |
-| **Auth Service** | `users`, `tokenblacklists`, `/auth/*`, `/users/profile/*`, profile photos | Owns JWT issuance/refresh/blacklist + OTP flow. Publishes `user.created`, `user.updated`. |
-| **Jobs Service** | `jobs`, `/jobs/*`, `/search/jobs`, `/search/suggestions/jobs` | Pure CRUD + text-search. |
-| **Applications Service** | `applications`, `/applications/*` | Calls Auth (validate token), Jobs (validate job is active), S3 (upload resume), and **emits an event** when a new application is created. |
-| **Resume Analysis Service** (Worker) | Subscribes to `application.created` → parses resume from S3 → calls Groq → writes back ATS score (HTTP callback to Applications, or directly to its own DB read-model) | Replace today's `setImmediate(...)` with a real queue. Heavy lifting (Groq, PDF parsing) belongs here. |
-| **Candidates Service** | `candidates`, admin bulk-upload flow | Could also share the Resume Analysis Service. |
-| **Search Service** | `/search/unified`, full-text aggregation across jobs + candidates | Optionally back this with Elasticsearch/Meilisearch. |
-| **Analytics/Dashboard Service** | `/dashboard/*`, `/analytics/*` | Read-only aggregator — could be a denormalized read-model fed by events. |
-| **Notifications Service** | Email (nodemailer/SES), interview-scheduling, OTP delivery | Subscribes to `password.reset.requested`, `interview.scheduled`, `application.statusChanged`. |
-
-### Suggested integration contract for the other application
-
-If the other app needs to talk to SkillSync:
-
-1. **Authenticate** by calling `POST /api/auth/login` (or accept a SkillSync-issued JWT).
-2. **Send `Authorization: Bearer <accessToken>`** on every request and verify via `JWT_SECRET` (or expose `/api/auth/verify` if you don't want to share the secret).
-3. **For state-changing requests**, fetch `GET /api/csrf-token` once, then send `X-CSRF-Token` + the cookie. (If you put a gateway in front, you can drop CSRF for service-to-service traffic and only enforce it on browser-originated traffic.)
-4. **Events to subscribe to** (recommended once you have a broker):
-   - `user.registered`, `user.updated`, `user.deleted`
-   - `job.created`, `job.updated`, `job.statusChanged`
-   - `application.submitted`, `application.statusChanged`, `application.withdrawn`
-   - `ats.scored` (with `applicationId`, `score`, `breakdown`, `matchSummary`)
-
-### Migration sequence (low risk → high risk)
-
-1. Wrap the current monolith behind an **API Gateway**; the second app integrates via the gateway only.
-2. Extract **Auth Service** first (it's the most decoupled — only owns `User` + tokens).
-3. Extract **Resume Analysis** as a worker behind a **queue** (replace `setImmediate`).
-4. Extract **Jobs**, **Applications**, **Candidates** in that order.
-5. Replace cross-service Mongoose `populate()` calls with HTTP calls or denormalized read-models.
+1. **Browser traffic** — SPA uses `Authorization: Bearer <jwt>`; for mutating calls, obtain CSRF from **`GET http://localhost:5000/api/csrf-token`** (gateway) with **`credentials: 'include'`**, then send **`X-CSRF-Token`** to the downstream service through the gateway (cookie must round-trip).
+2. **Role enforcement** — `admin` vs `user` is enforced in **service** code from JWT claims after `verifyToken`; never trust the client alone.
+3. **ObjectId sanitization** — continue using **`sanitizeObjectId`** / shared security helpers on any user-controlled id before Mongo queries.
+4. **Resume text** — parsed in **resume-analysis-service** memory only; not written as a durable resume body field in Mongo.
+5. **Duplicate applies** — unique `{userId, jobId}` on `applications` plus withdraw/reapply rules in **applications-service** `ApplicationService`.
+6. **Service-to-service** — `X-Internal-Token: INTERNAL_SERVICE_TOKEN` on `*/api/internal/*` routes; no CSRF on those calls.
 
 ---
 
-## 12. Quick Reference for the Receiving Team
+## 11. Implemented service map
 
-- **Base URL (dev)**: `http://localhost:5000/api`
-- **Frontend (dev)**: `http://localhost:3000`
-- **Auth header**: `Authorization: Bearer <accessToken>`
-- **CSRF header**: `X-CSRF-Token: <token from GET /api/csrf-token>` + `credentials: 'include'`
-- **Health check**: `GET /api/health`
-- **Required env vars** (`.env.example`):
+Aligned with [ADR 0001](./docs/adr/0001-microservices-split.md):
 
-```env
-MONGODB_URI=mongodb://localhost:27017/SkillSync
-JWT_SECRET=...
-JWT_EXPIRES_IN=7d
-GROQ_API_KEY=...
-EMAIL_SERVICE=gmail
-EMAIL_USER=...
-EMAIL_PASS=...
-COMPANY_NAME=...
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=us-east-1
-AWS_S3_BUCKET_NAME=...
-ALLOWED_ORIGINS=http://localhost:3000
-```
+| Deployable | Port | Owns / proxies |
+|------------|------|------------------|
+| **Gateway** | 5000 | Proxies table in §5; `GET /api/csrf-token`, `GET /health`, rate limit |
+| **auth-service** | 5001 | `users`, `tokenblacklists`, `/api/auth/*`, `/api/users/*` |
+| **jobs-service** | 5002 | `jobs`, `/api/jobs/*`, internal job reads |
+| **applications-service** | 5003 | `applications`, `candidates`, `/api/applications/*`, `/api/candidates/*`, internal ATS + dashboard helpers |
+| **resume-analysis-service** | 5004 | Worker: parse + Groq; PATCH applications internal ATS fields |
+| **search-service** | 5005 | `/api/search/*` (read-only Mongo on `jobs` + `candidates`) |
+| **dashboard-service** | 5006 | `/api/dashboard/*`, `/api/analytics/*` (HTTP aggregation; no Mongo) |
 
-- **Run from repo root**: `npm run install:all` then `npm run dev`.
+**Compose / ops**: see root **`docker-compose.yml`**, **`Dockerfile`**, **`README.md`**, scripts **`npm run dev:docker`**, **`npm run smoke`**.
 
 ---
 
-If you want a tighter integration spec, share back: (a) the **other application's** tech stack and the domain it owns (auth, jobs, scoring, notifications, …), and (b) which direction the calls flow (it calls SkillSync, SkillSync calls it, or both). With that, this document can be extended with concrete endpoint/event contracts.
+## 12. Quick reference
+
+| Item | Value |
+|------|--------|
+| API base (dev) | `http://localhost:5000/api` |
+| SPA (dev) | `http://localhost:3000` |
+| Env file | **Repository root** `.env` (copy from `.env.example`) |
+| Install | `npm install` (workspaces) |
+| Run all (dev) | `npm run dev` |
+| Docker stack | `npm run dev:docker` or `docker compose up --build -d` |
+| Smoke | `npm run smoke` (expects gateway up) |
+| Health | `GET http://localhost:5000/health` (gateway) |
+
+**Always set**: `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`, and `MONGODB_URI` for services that use Mongo. Optional URL overrides: `AUTH_SERVICE_URL`, `JOBS_SERVICE_URL`, `APPLICATIONS_SERVICE_URL`, `RESUME_ANALYSIS_SERVICE_URL`, `SEARCH_SERVICE_URL`, `DASHBOARD_SERVICE_URL` (defaults match local ports in `.env.example`).
+
+---
+
+For integration with **another system**, treat the **gateway** as the only public HTTP surface, reuse JWT + CSRF rules above, and for machine-to-machine server calls prefer **`INTERNAL_SERVICE_TOKEN`** on documented internal routes rather than sharing user JWTs.
