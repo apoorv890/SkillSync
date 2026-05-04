@@ -7,9 +7,6 @@ const requiredEnvVars = [
   'JWT_SECRET',
   'MONGODB_URI',
   'INTERNAL_SERVICE_TOKEN',
-  'AWS_ACCESS_KEY_ID',
-  'AWS_SECRET_ACCESS_KEY',
-  'AWS_S3_BUCKET_NAME',
   'GOOGLE_CLIENT_ID',
 ];
 

@@ -28,7 +28,7 @@ Deep dive: **[SKILLSYNC_OVERVIEW.md](./SKILLSYNC_OVERVIEW.md)**.
 ## Configuration
 
 1. Copy **`.env.example`** → **`.env`** at the **repository root** (same level as `package.json`).
-2. Set at least `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`, `MONGODB_URI`, **`GOOGLE_CLIENT_ID`** and **`VITE_GOOGLE_CLIENT_ID`** (same Web client id), plus keys your services need (`GROQ_API_KEY`, AWS, etc.). See `.env.example` for the full list.
+2. Set at least `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`, `MONGODB_URI`, **`GOOGLE_CLIENT_ID`** and **`VITE_GOOGLE_CLIENT_ID`** (same Web client id), plus **`GEMINI_API_KEY`**, AWS, etc. See `.env.example` for the full list.
 
 ## Local development
 

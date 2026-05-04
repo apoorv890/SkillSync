@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import fs from 'fs';
 import pdfParse from 'pdf-parse';
-import { Groq } from 'groq-sdk';
+import { generateGeminiText } from '@skillsync/shared/gemini';
 import * as jobsClient from '../services/jobsClient.js';
 import Candidate from '../models/Candidate.js';
 
@@ -9,45 +9,8 @@ import Candidate from '../models/Candidate.js';
  * CandidateController class handles all candidate-related operations
  */
 class CandidateController {
-  constructor() {
-    this.groqClient = null;
-  }
-
   /**
-   * Get Groq client instance (lazy initialization)
-   * @returns {Groq|null} Groq client instance
-   */
-  getGroqClient() {
-    if (!this.groqClient && process.env.GROQ_API_KEY) {
-      this.groqClient = new Groq({
-        apiKey: process.env.GROQ_API_KEY,
-      });
-    }
-    return this.groqClient;
-  }
-
-  /**
-   * Get candidates for a specific job
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
-  async getCandidatesByJob(req, res) {
-    try {
-      const jobId = req.params.id;
-      
-      if (!jobId || jobId === 'undefined' || !mongoose.Types.ObjectId.isValid(jobId)) {
-        return res.status(400).json({ error: 'Invalid job ID' });
-      }
-      
-      const candidates = await Candidate.find({ jobId }).sort({ createdAt: -1 });
-      res.json(candidates);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  /**
-   * Process resume with Groq LLM
+   * Process resume with Gemini (admin bulk upload scoring)
    * @param {string} resumeText - Resume text content
    * @param {string} jobDescription - Job description
    * @returns {Promise<Object>} Candidate data
@@ -56,7 +19,7 @@ class CandidateController {
     try {
       const truncatedResumeText = resumeText.substring(0, 3000);
       const truncatedJobDescription = jobDescription.substring(0, 1000);
-      
+
       const prompt = `
 You are an AI assistant specialized in analyzing resumes for job applications.
 
@@ -81,82 +44,96 @@ Return ONLY a valid JSON object with the following structure:
 }
 `;
 
-      const client = this.getGroqClient();
-      if (!client) {
-        throw new Error('Groq API key not configured');
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY is not configured');
       }
-      
-      const completion = await client.chat.completions.create({
-        messages: [{ role: "user", content: prompt }],
-        model: "llama3-70b-8192",
+
+      const model =
+        process.env.GEMINI_CANDIDATE_MODEL ||
+        process.env.GEMINI_MODEL ||
+        'gemini-2.0-flash';
+
+      const responseContent = await generateGeminiText(prompt, {
+        model,
         temperature: 0.3,
-        max_tokens: 500,
+        maxOutputTokens: 2048,
       });
 
-      const responseContent = completion.choices[0].message.content;
-      
       try {
         const cleanedResponse = responseContent
-          .replace(/```json/g, '')
+          .replace(/```json/gi, '')
           .replace(/```/g, '')
           .trim();
-        
+
         const parsedResponse = JSON.parse(cleanedResponse);
-        
+
         if (!parsedResponse.name) {
-          parsedResponse.name = "Unknown Candidate";
+          parsedResponse.name = 'Unknown Candidate';
         }
-        
+
         if (!parsedResponse.matchScore) {
           parsedResponse.matchScore = 50;
         }
-        
+
         if (!parsedResponse.matchExplanation) {
-          parsedResponse.matchExplanation = "Score based on general resume evaluation.";
+          parsedResponse.matchExplanation = 'Score based on general resume evaluation.';
         }
-        
+
         return {
           name: parsedResponse.name,
-          email: parsedResponse.email || `${parsedResponse.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+          email:
+            parsedResponse.email ||
+            `${parsedResponse.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
           matchScore: parsedResponse.matchScore,
           matchExplanation: parsedResponse.matchExplanation,
-          resumeText: truncatedResumeText.substring(0, 1000)
+          resumeText: truncatedResumeText.substring(0, 1000),
         };
       } catch (error) {
         console.error('Error parsing LLM response:', error, 'Raw response:', responseContent);
         return {
-          name: "Unknown Candidate",
-          email: "unknown.candidate@example.com",
+          name: 'Unknown Candidate',
+          email: 'unknown.candidate@example.com',
           matchScore: 50,
-          matchExplanation: "Unable to analyze resume properly. Score is an estimate.",
-          resumeText: truncatedResumeText.substring(0, 1000)
+          matchExplanation: 'Unable to analyze resume properly. Score is an estimate.',
+          resumeText: truncatedResumeText.substring(0, 1000),
         };
       }
     } catch (error) {
-      console.error('Error processing with Groq LLM:', error);
+      console.error('Error processing with Gemini:', error);
       return {
-        name: "Unknown Candidate",
-        email: "unknown.candidate@example.com",
+        name: 'Unknown Candidate',
+        email: 'unknown.candidate@example.com',
         matchScore: 50,
-        matchExplanation: "Unable to analyze resume due to technical issues. Score is an estimate.",
-        resumeText: resumeText.substring(0, 1000)
+        matchExplanation:
+          'Unable to analyze resume due to technical issues. Score is an estimate.',
+        resumeText: resumeText.substring(0, 1000),
       };
     }
   }
 
-  /**
-   * Upload and process resumes (Admin only)
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
-  async uploadResumes(req, res) {
+  async getCandidatesByJob(req, res) {
     try {
       const jobId = req.params.id;
-      
+
       if (!jobId || jobId === 'undefined' || !mongoose.Types.ObjectId.isValid(jobId)) {
         return res.status(400).json({ error: 'Invalid job ID' });
       }
-      
+
+      const candidates = await Candidate.find({ jobId }).sort({ createdAt: -1 });
+      res.json(candidates);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async uploadResumes(req, res) {
+    try {
+      const jobId = req.params.id;
+
+      if (!jobId || jobId === 'undefined' || !mongoose.Types.ObjectId.isValid(jobId)) {
+        return res.status(400).json({ error: 'Invalid job ID' });
+      }
+
       const job = await jobsClient.getJobById(jobId);
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
@@ -165,7 +142,7 @@ Return ONLY a valid JSON object with the following structure:
       const jobDescription =
         job.description ||
         [job.summary, job.keyResponsibilities, job.requiredSkills].filter(Boolean).join('\n\n');
-      
+
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'No resume files uploaded' });
       }
@@ -185,7 +162,7 @@ Return ONLY a valid JSON object with the following structure:
 
           const candidateData = await this.processResumeWithLLM(resumeText, jobDescription);
           candidateData.resumeUrl = file.path;
-          
+
           const candidate = new Candidate({
             jobId,
             name: candidateData.name,
@@ -193,16 +170,16 @@ Return ONLY a valid JSON object with the following structure:
             atsScore: candidateData.matchScore,
             matchExplanation: candidateData.matchExplanation,
             resumeUrl: candidateData.resumeUrl,
-            resumeText: candidateData.resumeText
+            resumeText: candidateData.resumeText,
           });
-          
+
           await candidate.save();
           processedCandidates.push(candidate);
         } catch (error) {
           console.error('Error processing resume:', error);
           errors.push({
             filename: file.originalname,
-            error: error.message || 'Failed to process the uploaded resume'
+            error: error.message || 'Failed to process the uploaded resume',
           });
         }
       }
@@ -213,7 +190,7 @@ Return ONLY a valid JSON object with the following structure:
         errors: errors,
         total: req.files.length,
         processed: processedCandidates.length,
-        failed: errors.length
+        failed: errors.length,
       });
     } catch (error) {
       console.error('Error processing resumes:', error);
@@ -221,30 +198,25 @@ Return ONLY a valid JSON object with the following structure:
     }
   }
 
-  /**
-   * Schedule interview for a candidate (Admin only)
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   */
   async scheduleInterview(req, res) {
     try {
       const candidateId = req.params.id;
-      
+
       if (!candidateId || !mongoose.Types.ObjectId.isValid(candidateId)) {
         return res.status(400).json({ error: 'Invalid candidate ID' });
       }
-      
+
       const candidate = await Candidate.findById(candidateId);
-      
+
       if (!candidate) {
         return res.status(404).json({ error: 'Candidate not found' });
       }
-      
+
       candidate.interviewScheduled = true;
       candidate.interviewDate = req.body.interviewDate || new Date();
-      
+
       await candidate.save();
-      
+
       res.json(candidate);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -252,5 +224,4 @@ Return ONLY a valid JSON object with the following structure:
   }
 }
 
-// Export a singleton instance
 export default new CandidateController();

@@ -2,10 +2,10 @@ const requiredEnvVars = [
   'JWT_SECRET',
   'MONGODB_URI',
   'INTERNAL_SERVICE_TOKEN',
-  'GROQ_API_KEY',
+  'GEMINI_API_KEY',
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
-  'AWS_S3_BUCKET_NAME'
+  'AWS_S3_BUCKET_NAME',
 ];
 
 const optionalEnvVars = {
@@ -16,7 +16,8 @@ const optionalEnvVars = {
   AUTH_SERVICE_URL: 'http://127.0.0.1:5001',
   JOBS_SERVICE_URL: 'http://127.0.0.1:5002',
   RESUME_ANALYSIS_SERVICE_URL: 'http://127.0.0.1:5004',
-  APPLICATIONS_SERVICE_PORT: '5003'
+  APPLICATIONS_SERVICE_PORT: '5003',
+  GEMINI_MODEL: 'gemini-2.0-flash',
 };
 
 export function validateEnv() {
