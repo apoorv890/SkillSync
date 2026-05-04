@@ -17,7 +17,7 @@ export function validateEnv() {
   if (missing.length > 0) {
     throw new Error(
       `Missing required environment variables: ${missing.join(', ')}\n` +
-        'Set these in server/.env before starting the search service.'
+        'Set these in the repository root `.env` before starting the search service.'
     );
   }
   for (const [varName, defaultValue] of Object.entries(optionalEnvVars)) {

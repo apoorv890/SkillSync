@@ -10,7 +10,7 @@ SkillSync is an **AI-powered recruitment platform**. It has two sides:
 - **Candidates (role: `user`)** — browse jobs, apply with a resume, track application status, see AI-generated ATS match scores.
 - **Recruiters (role: `admin`)** — create/manage jobs, view applicants ranked by ATS score, schedule interviews, and view dashboards/analytics.
 
-The repo is a **classic monolith with two deployable units**: a frontend (`client/`) and a backend (`server/`), wired together via a single REST API. There is no message broker today; ATS scoring happens in-process.
+The repo ships a **Vite SPA** (`client/`) and a **decomposed backend**: an API **gateway** (`gateway/`) on port 5000 proxies to services under `services/` (auth, jobs, applications, resume-analysis, search, dashboard). The legacy single `server/` app has been **removed** (Phase 10); there is still no message broker; ATS scoring runs in `resume-analysis-service` with callbacks to `applications-service`.
 
 ---
 
@@ -263,7 +263,7 @@ This is the natural seam where you should plug in a **message queue** (RabbitMQ 
 | **SMTP/Email** | `nodemailer` (currently logs OTP) | `EMAIL_SERVICE`, `EMAIL_USER`, `EMAIL_PASS` |
 | **JWT** | `TokenService` | `JWT_SECRET`, `JWT_EXPIRES_IN` |
 
-> Heads-up to whoever you forward this to: the committed `server/.env` in this repo has **real credentials** (Groq, AWS). Rotate them before merging.
+> Heads-up: keep the repository root `.env` (gitignored) out of commits; it holds real credentials (Groq, AWS, etc.). Rotate any leaked keys before merging.
 
 ---
 

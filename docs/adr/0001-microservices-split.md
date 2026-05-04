@@ -24,14 +24,14 @@ Convert the backend into 7 services + 1 API gateway, deployed independently:
 
 ### Architectural decisions
 
-1. **Monorepo with npm workspaces.** Single repo, package names of the form `@skillsync/<name>`. End-state layout consolidates `shared/`, `gateway/`, and `services/` under a fresh `server/` directory.
+1. **Monorepo with npm workspaces.** Single repo, package names of the form `@skillsync/<name>`. A follow-up consolidation may move `shared/`, `gateway/`, and `services/` under one deployable tree; the legacy `SkillSync-server` package has been removed in favor of the gateway + services only.
 2. **Synchronous HTTP for inter-service communication.** No message broker. The current in-process `setImmediate` ATS pipeline becomes a fire-and-forget HTTP POST from `applications-service` to `resume-analysis-service`, which calls back via a `PATCH` to `applications-service`. Same observable behavior; no new external infrastructure.
 3. **Logical bounded contexts on a single MongoDB.** Each service connects independently and only writes to the collections it owns. DB-per-service is left as a follow-up; this keeps the refactor purely structural.
 4. **Defense-in-depth auth with shared JWT secret.** Every service verifies JWT signatures locally with `JWT_SECRET`. Only the gateway consults the `tokenblacklists` collection (via `auth-service`) so internal calls don't hop. Service-to-service traffic uses an `INTERNAL_SERVICE_TOKEN` HMAC header instead of user JWTs.
-5. **CSRF and rate limiting at the gateway only.** Internal calls are not CSRF-protected.
+5. **CSRF token issuance on the gateway; validation on services.** `GET /api/csrf-token` runs on the gateway (same `JWT_SECRET` cookie signing as downstream). Rate limiting is applied at the gateway on `/api`. Internal service calls are not CSRF-protected.
 6. **`@skillsync/shared` package** holds cross-cutting code: `ApiError`, `ApiResponse`, `catchAsync`, Winston logger factory, Mongoose connect helper, JWT verify, `requireAuth` middleware, `requireInternal` middleware, `sanitizeObjectId`, `timingSafeOtpCompare`, HTTP/status constants, S3 helper. Mongoose models are **not** shared - each service owns its schema; read-only services (search, dashboard) declare minimal duplicated schemas.
 7. **Resume text never persisted** (existing invariant). It only flows through `resume-analysis-service` memory and is GC'd.
-8. **Strangler-fig migration.** Stand up the gateway first, proxying to the legacy server. Extract one service at a time (auth → jobs → resume-analysis → applications → search → dashboard), flipping the gateway route table per phase. Legacy server keeps running for everything not yet extracted, until Phase 10 deletes it.
+8. **Strangler-fig migration.** Stand up the gateway first, proxying to the legacy monolith, then extract services one at a time until the legacy `server/` package is removed (Phase 10). The gateway remains the single ingress for the SPA.
 
 ## Consequences
 
