@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+.git
+.github
+.cursor
+*.md
+!README.md
+dist
+**/dist
+build
+**/build
+.env
+coverage
+.nyc_output
+*.log
+terminals
+agent-transcripts
