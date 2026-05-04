@@ -24,7 +24,11 @@
     "dev": "concurrently -n client,gateway,auth,jobs,apps,search,dash,resume -c blue,magenta,green,yellow,cyan,white,gray,cyanBright,red \"npm run dev:client\" \"npm run dev:gateway\" \"npm run dev:auth\" \"npm run dev:jobs\" \"npm run dev:applications\" \"npm run dev:search\" \"npm run dev:dashboard\" \"npm run dev:resume-analysis\"",
     "build:client": "npm run build --workspace=SkillSync-client",
     "start:gateway": "npm start --workspace=@skillsync/gateway",
-    "start": "npm run build:client && npm run start:gateway"
+    "start": "npm run build:client && npm run start:gateway",
+    "dev:docker": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f gateway",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "concurrently": "^8.2.2"
