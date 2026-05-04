@@ -6,7 +6,7 @@
 
 ## Context
 
-SkillSync is currently a two-deployable monolith: a React/Vite client and a single Express/Mongoose backend (see [SKILLSYNC_OVERVIEW.md](../../SKILLSYNC_OVERVIEW.md)). The backend bundles authentication, jobs, applications, candidates, resume parsing, ATS scoring (Groq), search, dashboards, and analytics into one process. We need to integrate SkillSync with another application using a microservice architecture, so the backend must be decomposed along bounded contexts. No new product features are in scope for this refactor.
+SkillSync began as a React/Vite client plus a single Express/Mongoose backend (see [SKILLSYNC_OVERVIEW.md](../../SKILLSYNC_OVERVIEW.md)). The refactor **replaced** that monolith with an API gateway and bounded-context services (auth, jobs, applications, resume-analysis, search, dashboard). No new product features were in scope; the goal was structural decomposition for integration with another application.
 
 ## Decision
 
