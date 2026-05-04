@@ -2,7 +2,7 @@
   "name": "@skillsync/auth-service",
   "version": "1.0.0",
   "private": true,
-  "description": "SkillSync auth service (Google sign-in, JWT, profile photos)",
+  "description": "SkillSync auth service (Google sign-in, JWT, user profile)",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -10,7 +10,6 @@
     "start": "node src/server.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.922.0",
     "@skillsync/shared": "*",
     "bcryptjs": "^2.4.3",
     "chalk": "^5.6.2",
@@ -22,7 +21,6 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.0",
-    "multer": "^1.4.5-lts.1",
     "winston": "^3.18.3"
   }
 }

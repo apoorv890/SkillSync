@@ -2,7 +2,7 @@
   "name": "@skillsync/resume-analysis-service",
   "version": "1.0.0",
   "private": true,
-  "description": "SkillSync resume parsing and ATS scoring (Groq) worker",
+  "description": "SkillSync resume parsing and ATS scoring (Gemini) worker",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -16,7 +16,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
-    "groq-sdk": "^0.16.0",
     "helmet": "^8.1.0",
     "mammoth": "^1.11.0",
     "pdf-parse": "^1.1.1",

@@ -13,12 +13,14 @@
     "./jwt": "./src/jwt/index.js",
     "./middleware": "./src/middleware/index.js",
     "./security": "./src/security/index.js",
-    "./constants": "./src/constants/index.js"
+    "./constants": "./src/constants/index.js",
+    "./gemini": "./src/gemini/index.js"
   },
   "scripts": {
     "test": "echo \"shared: no tests\" && exit 0"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.0",
     "winston": "^3.18.3"

@@ -42,10 +42,10 @@ Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JW
 
 | Area | Typical packages | Lives in |
 |------|-------------------|----------|
-| Auth / users | `mongoose`, `bcryptjs`, `jsonwebtoken`, `multer`, S3 for avatars | `services/auth` |
+| Auth / users | `mongoose`, `google-auth-library`, `jsonwebtoken`, JWT | `services/auth` |
 | Jobs | `mongoose`, job CRUD + internal read/search helpers | `services/jobs` |
-| Applications + candidates | `mongoose`, `multer`, AWS S3, `groq-sdk` (candidate upload flow), internal routes for ATS + dashboard reads | `services/applications` |
-| Resume analysis | `pdf-parse`, `mammoth`, `groq-sdk` (no Mongoose for `Application` — HTTP back to applications) | `services/resume-analysis` |
+| Applications + candidates | `mongoose`, `multer`, AWS S3, `@skillsync/shared/gemini` (admin bulk resume scoring), internal routes for ATS + dashboard reads | `services/applications` |
+| Resume analysis | `pdf-parse`, `mammoth`, `@skillsync/shared/gemini` (ATS; HTTP back to applications) | `services/resume-analysis` |
 | Search | `mongoose` read-only models on `jobs` + `candidates` collections | `services/search` |
 | Dashboard | HTTP clients only (no Mongo in-process) | `services/dashboard` |
 | Gateway | `http-proxy-middleware`, `express-rate-limit` | `gateway` |
@@ -174,8 +174,7 @@ Implemented locally on the gateway (not proxied): **`GET /health`**.
 - `GET /` — JWT, jobs-created-per-day for ranges `7d`/`30d`/`90d`
 
 ### `/api/users` (auth-service)
-- `GET /profile`, `PUT /profile`
-- `POST /profile/photo`, `DELETE /profile/photo` — multipart, S3-backed, JWT
+- `GET /profile`, `PUT /profile` — JWT (profile photo is Google `picture` URL on the user document, not S3)
 
 ### Health
 - **`GET /health`** — gateway only (JSON includes upstream hints).
@@ -221,8 +220,8 @@ If you add a **message broker** later, replace the “HTTP POST to resume-analys
 | System | Used by | Env vars |
 |---|---|---|
 | **MongoDB** | auth, jobs, applications, search (each connects) | `MONGODB_URI` |
-| **AWS S3** | applications (resumes), auth (profile photos) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME` |
-| **Groq AI** | resume-analysis (ATS), applications (candidate bulk scoring) | `GROQ_API_KEY` (see code for model id) |
+| **AWS S3** | applications (resumes); resume-analysis reads resumes from S3 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME` |
+| **Google Gemini** | resume-analysis (ATS), applications (candidate bulk scoring) | `GEMINI_API_KEY`, optional `GEMINI_MODEL` / `GEMINI_ATS_MODEL` / `GEMINI_CANDIDATE_MODEL` |
 | **Google OAuth** | auth (`google-auth-library` verify) | `GOOGLE_CLIENT_ID` (same value as `VITE_GOOGLE_CLIENT_ID` in Vite) |
 | **JWT** | all services that verify users | `JWT_SECRET`, `JWT_EXPIRES_IN` |
 | **Internal HMAC** | service-to-service `fetch` clients | `INTERNAL_SERVICE_TOKEN` (+ optional `*_SERVICE_URL` overrides) |

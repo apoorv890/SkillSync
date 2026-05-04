@@ -1,19 +1,18 @@
 /**
- * Creates 5 job postings via the gateway API (same contract as POST /api/jobs).
+ * Creates 5 IT-domain job postings via the gateway (POST /api/jobs).
+ * Each run uses a unique batch id in titles and copy so postings are easy to tell apart.
+ * Every job is forced to status `active`.
  *
- * Auth: set `SEED_ADMIN_JWT` in root `.env` to a valid admin JWT (copy from browser
- * after signing in with Google as an admin). Password login was removed.
+ * Auth: set `SEED_ADMIN_JWT` or `ADMIN_JWT` in root `.env` (admin JWT from the app).
  *
  * Usage:
  *   node scripts/seedFiveJobs.mjs
  *
- * Optional:
- *   SEED_GATEWAY_URL=http://127.0.0.1:5000   (default)
- *
- * Requires: gateway + jobs running; admin JWT with role admin.
+ * Optional: SEED_GATEWAY_URL (default http://127.0.0.1:5000)
  */
 
 import { existsSync, readFileSync } from 'fs';
+import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -46,86 +45,105 @@ const API = `${GATEWAY}/api`;
 
 const ADMIN_JWT = process.env.SEED_ADMIN_JWT || process.env.ADMIN_JWT;
 
-function buildJobs(runId) {
-  const longSummary = (slug) =>
-    `${slug} — SkillSync hiring pipeline role. Own delivery from design through production. ` +
-    `Collaborate with product and platform teams. This summary is intentionally over fifty characters.`;
+/** ≥50 chars for API validation */
+function itSummary(roleTag, batchId, idx) {
+  return (
+    `${roleTag} (IT) — batch ${batchId} role #${idx + 1}. ` +
+    `Own enterprise systems, documentation, and stakeholder communication across internal technology. ` +
+    `This summary stays over fifty characters for SkillSync validation.`
+  );
+}
 
-  const skillsBlock = (stack) =>
-    `${stack} plus REST APIs, Git, code review, testing discipline, and production observability practices.`;
+/** ≥20 chars */
+function skillsBase(extra) {
+  return (
+    `IT domain: ${extra}; Windows/macOS, ticketing, identity basics, ` +
+    `scripting (PowerShell or Bash), networking fundamentals, change management.`
+  );
+}
 
-  return [
+function buildJobs(batchId) {
+  const workTypes = ['Full-time', 'Full-time', 'Part-time', 'Contract', 'Internship'];
+  const locations = [
+    'Hybrid — Austin, TX (IT hub)',
+    'Remote — US East (IT operations)',
+    'On-site — Seattle, WA (corporate IT)',
+    'Remote — EU (IT support coverage)',
+    'Hybrid — Toronto, ON (IT service desk)',
+  ];
+  const compensations = [
+    '$118k–$142k USD base + on-call stipend',
+    '$92k–$110k USD base (IT L2 track)',
+    '$65–$85/hr USD contract (IT project)',
+    '€58k–€72k EUR base + benefits',
+    '$32–$38/hr USD internship (IT, 6 mo)',
+  ];
+
+  const roles = [
     {
-      title: `SkillSync — Senior Platform Engineer ${runId}-1`,
-      location: 'Remote — North America',
-      workType: 'Full-time',
-      status: 'active',
-      summary: longSummary('Platform'),
-      keyResponsibilities:
-        '• Own core API gateway and service mesh integrations.\n• Drive reliability SLOs and incident response.\n• Mentor engineers on distributed systems.',
-      requiredSkills: skillsBlock('Node.js, TypeScript, MongoDB, Docker, Kubernetes'),
-      preferredSkills: 'Prior experience with HR tech or ATS integrations is a plus.',
-      aboutCompany:
-        'SkillSync is a small product team building modern hiring workflows; platform reliability is a first-class feature.',
-      compensation: '$160k–$195k USD base + equity',
+      title: `IT — Senior Systems Administrator [${batchId}]`,
+      roleTag: 'Senior Systems Administrator',
+      bullets:
+        '• Own AD/Azure AD hygiene, GPO baselines, and patch cycles.\n• Lead incident bridges for Sev-1 IT outages.\n• Mentor L1/L2 on runbooks and knowledge articles.',
+      skillsExtra: 'Windows Server, Azure AD, Intune, M365 admin center',
+      preferred: 'ITIL 4 Foundation; experience with MDM migrations.',
+      about:
+        'Internal IT for a product company: lean team, high trust, strong change controls for production-adjacent systems.',
     },
     {
-      title: `SkillSync — Full Stack Engineer (IT) ${runId}-2`,
-      location: 'Hybrid — Austin, TX',
-      workType: 'Full-time',
-      status: 'active',
-      summary: longSummary('FullStack'),
-      keyResponsibilities:
-        '• Ship end-to-end features across React and Node services.\n• Improve observability and developer tooling.\n• Partner with design on accessible UI.',
-      requiredSkills: skillsBlock('React, TypeScript, Node.js, MongoDB, REST'),
-      preferredSkills: 'Experience with Vite, micro-frontends, or design systems.',
-      aboutCompany:
-        'We iterate quickly with a focus on clarity and maintainability for a small user base that still expects polish.',
-      compensation: '$130k–$165k USD base',
+      title: `IT — Network Engineer (Enterprise) [${batchId}]`,
+      roleTag: 'Enterprise Network Engineer',
+      bullets:
+        '• Design and operate LAN/WLAN; firewall rule hygiene.\n• Capacity planning for office and VPN footprints.\n• Partner with security on segmentation and monitoring.',
+      skillsExtra: 'Cisco/Meraki or Juniper, VPN, TCP/IP, Wi-Fi 6, syslog',
+      preferred: 'CCNA or equivalent; zero-trust familiarity a plus.',
+      about:
+        'Corporate IT backbone team; you keep offices and remote staff connected with measurable uptime targets.',
     },
     {
-      title: `SkillSync — IT Support Lead ${runId}-3`,
-      location: 'On-site — Seattle, WA',
-      workType: 'Full-time',
-      status: 'draft',
-      summary: longSummary('ITSupport'),
-      keyResponsibilities:
-        '• Own internal IT operations and endpoint security posture.\n• Automate onboarding/offboarding workflows.\n• Coordinate vendor relationships.',
-      requiredSkills: skillsBlock('Okta or Azure AD, MDM, Windows/macOS administration, scripting'),
-      preferredSkills: 'SOC2 familiarity; experience supporting engineering-heavy orgs.',
-      aboutCompany:
-        'SkillSync keeps internal IT lean but disciplined as we scale hiring workflows for customers.',
-      compensation: '$95k–$120k USD base',
+      title: `IT — Service Desk Lead [${batchId}]`,
+      roleTag: 'IT Service Desk Lead',
+      bullets:
+        '• Own queue SLAs, shift coverage, and escalation paths.\n• Drive KB quality and deflection metrics.\n• Coordinate vendor tickets (Okta, MDM, telecom).',
+      skillsExtra: 'Zendesk/Jira Service Management, SLAs, asset lifecycle',
+      preferred: 'People leadership in IT support; SOC2-aware workflows.',
+      about:
+        'Employee-first IT: fast restores, clear comms, and respectful handoffs to engineering when needed.',
     },
     {
-      title: `SkillSync — Security Engineer (IT) ${runId}-4`,
-      location: 'Remote — EU',
-      workType: 'Contract',
-      status: 'active',
-      summary: longSummary('Security'),
-      keyResponsibilities:
-        '• Threat model new services and integrations.\n• Implement secure defaults for auth and file uploads.\n• Run lightweight pen-test cycles with external partners.',
-      requiredSkills: skillsBlock('OWASP ASVS, JWT/OAuth2, AWS IAM, secrets management'),
-      preferredSkills: 'Background in regulated industries or SOC2 programs.',
-      aboutCompany:
-        'Security is prioritized at deployment; this role hardens our multi-service architecture for real customer data.',
-      compensation: '€600–€800/day (contract)',
+      title: `IT — Identity & Access Analyst [${batchId}]`,
+      roleTag: 'Identity and Access Analyst',
+      bullets:
+        '• Provision/deprovision with least privilege; access reviews.\n• SAML/OIDC app onboarding with security sign-off.\n• Automate repetitive IAM tasks with scripts.',
+      skillsExtra: 'Okta/Azure AD, SSO, SCIM, RBAC, audit trails',
+      preferred: 'Experience with HRIS-driven joiner-mover-leaver automation.',
+      about:
+        'Security-aligned IT: you make access smooth without widening blast radius.',
     },
     {
-      title: `SkillSync — Customer Success Manager ${runId}-5`,
-      location: 'Remote — US East Coast',
-      workType: 'Full-time',
-      status: 'active',
-      summary: longSummary('CSM'),
-      keyResponsibilities:
-        '• Onboard new SkillSync customers and own renewal health scores.\n• Translate product capabilities into recruiter workflows.\n• Coordinate with engineering on escalations.',
-      requiredSkills: skillsBlock('SaaS onboarding, stakeholder management, data-informed QBRs, Zendesk or similar'),
-      preferredSkills: 'Background in recruiting or HRIS integrations; comfortable with light SQL.',
-      aboutCompany:
-        'SkillSync wins when customers trust the platform; CS partners tightly with product and support leadership.',
-      compensation: '$95k–$120k USD base + bonus eligible',
+      title: `IT — Endpoint Security Technician [${batchId}]`,
+      roleTag: 'Endpoint Security Technician',
+      bullets:
+        '• Triage EDR alerts; contain and remediate suspicious hosts.\n• Harden laptop baselines; drive disk encryption compliance.\n• Support phishing simulations and remediation.',
+      skillsExtra: 'EDR (Defender/CrowdStrike), disk encryption, secure boot',
+      preferred: 'GSEC or similar baseline; calm incident documentation.',
+      about:
+        'IT + security overlap: practical hardening for a small org with real customer data.',
     },
   ];
+
+  return roles.map((r, i) => ({
+    title: r.title,
+    location: locations[i],
+    workType: workTypes[i],
+    status: 'active',
+    summary: itSummary(r.roleTag, batchId, i),
+    keyResponsibilities: r.bullets,
+    requiredSkills: skillsBase(r.skillsExtra),
+    preferredSkills: r.preferred,
+    aboutCompany: r.about,
+    compensation: compensations[i],
+  }));
 }
 
 async function createJob(token, payload) {
@@ -151,7 +169,7 @@ async function createJob(token, payload) {
   return body;
 }
 
-const runId = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+const batchId = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
 
 try {
   console.log(`Gateway: ${GATEWAY}`);
@@ -160,19 +178,20 @@ try {
       'Set SEED_ADMIN_JWT (or ADMIN_JWT) in .env to an admin access token from the app after Google sign-in.'
     );
   }
+  console.log(`Batch id (embedded in titles): ${batchId}`);
 
-  const jobs = buildJobs(runId);
+  const jobs = buildJobs(batchId);
   const created = [];
 
   for (let i = 0; i < jobs.length; i++) {
     const payload = jobs[i];
     const result = await createJob(ADMIN_JWT, payload);
     const id = result.data?._id || result.data?.id || result._id;
-    created.push({ title: payload.title, id: String(id) });
-    console.log(`[${i + 1}/5] Created: ${payload.title} → ${id}`);
+    created.push({ title: payload.title, id: String(id), status: payload.status });
+    console.log(`[${i + 1}/5] Created (${payload.status}): ${payload.title} → ${id}`);
   }
 
-  console.log('\nDone. Created jobs:');
+  console.log('\nDone. Created IT jobs (all active):');
   for (const row of created) {
     console.log(`  - ${row.id}  ${row.title}`);
   }
