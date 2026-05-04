@@ -1,12 +1,11 @@
-import * as jobsClient from '../services/jobsClient.js';
-import * as applicationsClient from '../services/applicationsClient.js';
+import * as searchRead from '../services/searchReadService.js';
 import { sanitizeSearchQuery } from '@skillsync/shared/security';
 
 class SearchController {
   async searchJobs(req, res) {
     try {
       const { query, department, location, status } = req.query;
-      const jobs = await jobsClient.searchJobsFiltered({ query, department, location, status });
+      const jobs = await searchRead.searchJobsWithFilters({ query, department, location, status });
       res.json(jobs);
     } catch (error) {
       console.error('Error searching jobs:', error);
@@ -17,7 +16,7 @@ class SearchController {
   async searchCandidates(req, res) {
     try {
       const { query, jobId, minScore, maxScore } = req.query;
-      const candidates = await applicationsClient.searchCandidatesFiltered({
+      const candidates = await searchRead.searchCandidatesFiltered({
         query,
         jobId,
         minScore,
@@ -39,12 +38,12 @@ class SearchController {
         return res.json({ jobs: [], candidates: [] });
       }
 
-      const results = {
-        jobs: await jobsClient.unifiedSearchJobs(sanitizedQuery),
-        candidates: await applicationsClient.unifiedSearchCandidates(sanitizedQuery)
-      };
+      const [jobs, candidates] = await Promise.all([
+        searchRead.unifiedSearchJobsOnly(sanitizedQuery),
+        searchRead.unifiedSearchCandidatesPart(sanitizedQuery)
+      ]);
 
-      res.json(results);
+      res.json({ jobs, candidates });
     } catch (error) {
       console.error('Error performing unified search:', error);
       res.status(500).json({ error: error.message });
@@ -54,7 +53,7 @@ class SearchController {
   async getJobSuggestions(req, res) {
     try {
       const { prefix } = req.query;
-      const suggestions = await jobsClient.getJobSuggestions(prefix);
+      const suggestions = await searchRead.getJobSuggestions(prefix);
       res.json(suggestions);
     } catch (error) {
       console.error('Error getting job suggestions:', error);
@@ -65,7 +64,7 @@ class SearchController {
   async getCandidateSuggestions(req, res) {
     try {
       const { prefix, jobId } = req.query;
-      const suggestions = await applicationsClient.getCandidateSuggestions(prefix, jobId);
+      const suggestions = await searchRead.getCandidateSuggestionsInternal(prefix, jobId);
       res.json(suggestions);
     } catch (error) {
       console.error('Error getting candidate suggestions:', error);
