@@ -9,7 +9,7 @@ import logger from '@skillsync/shared/logger';
 import { getJWTSecret, verifyToken as verifyJwtToken } from '@skillsync/shared/jwt';
 
 // Token expiration times
-const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '15m'; // Short-lived access token
+const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '7d'; // Browser SPA; tighten at deploy if needed
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d'; // Long-lived refresh token
 
 class TokenService {

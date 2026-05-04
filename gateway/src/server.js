@@ -77,7 +77,7 @@ const proxyError =
   };
 
 /** http-proxy-middleware v3: Express strips the mount path from req.url before proxying.
- * Upstream services still expect full paths like /api/auth/register — rewrite them back.
+ * Upstream services still expect full paths like /api/auth/google — rewrite them back.
  * `xfwd: true` forwards X-Forwarded-* so upstream rate limiters can key off real client IP. */
 const proxyOpts = {
   changeOrigin: true,

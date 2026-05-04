@@ -1,19 +1,16 @@
 /**
  * Creates 5 job postings via the gateway API (same contract as POST /api/jobs).
- * Every field accepted by job creation is set with distinct values per row.
  *
- * Default admin (dev only — override via argv or env for other accounts):
- *   postmantest2@example.com / ValidPass1!
+ * Auth: set `SEED_ADMIN_JWT` in root `.env` to a valid admin JWT (copy from browser
+ * after signing in with Google as an admin). Password login was removed.
  *
  * Usage:
  *   node scripts/seedFiveJobs.mjs
- *   node scripts/seedFiveJobs.mjs <adminEmail> <adminPassword>
- *   SEED_ADMIN_EMAIL=... SEED_ADMIN_PASSWORD=... node scripts/seedFiveJobs.mjs
  *
  * Optional:
  *   SEED_GATEWAY_URL=http://127.0.0.1:5000   (default)
  *
- * Requires: gateway + auth + jobs running; admin user in MongoDB.
+ * Requires: gateway + jobs running; admin JWT with role admin.
  */
 
 import { existsSync, readFileSync } from 'fs';
@@ -22,7 +19,6 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** Load root `.env` into `process.env` if present (no extra npm deps). */
 function loadEnvFile(filePath) {
   if (!existsSync(filePath)) return;
   const text = readFileSync(filePath, 'utf8');
@@ -48,18 +44,8 @@ loadEnvFile(path.join(__dirname, '..', '.env'));
 const GATEWAY = (process.env.SEED_GATEWAY_URL || 'http://127.0.0.1:5000').replace(/\/$/, '');
 const API = `${GATEWAY}/api`;
 
-/** Hardcoded dev admin; argv or env overrides. */
-const DEFAULT_ADMIN_EMAIL = 'postmantest2@example.com';
-const DEFAULT_ADMIN_PASSWORD = 'ValidPass1!';
+const ADMIN_JWT = process.env.SEED_ADMIN_JWT || process.env.ADMIN_JWT;
 
-const emailArg = process.argv[2];
-const passArg = process.argv[3];
-const ADMIN_EMAIL =
-  emailArg || process.env.SEED_ADMIN_EMAIL || process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
-const ADMIN_PASSWORD =
-  passArg || process.env.SEED_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
-
-/** Meets express-validator: summary >= 50, requiredSkills >= 20, other field max lengths */
 function buildJobs(runId) {
   const longSummary = (slug) =>
     `${slug} — SkillSync hiring pipeline role. Own delivery from design through production. ` +
@@ -78,53 +64,52 @@ function buildJobs(runId) {
       keyResponsibilities:
         '• Own core API gateway and service mesh integrations.\n• Drive reliability SLOs and incident response.\n• Mentor engineers on distributed systems.',
       requiredSkills: skillsBlock('Node.js, TypeScript, MongoDB, Docker, Kubernetes'),
-      preferredSkills:
-        'Terraform, Prometheus, OpenTelemetry, prior experience with high-traffic B2B SaaS.',
+      preferredSkills: 'Prior experience with HR tech or ATS integrations is a plus.',
       aboutCompany:
-        'SkillSync builds AI-assisted hiring workflows for modern recruiting teams. We value clarity, ownership, and customer empathy.',
-      compensation: '$165k–$195k USD + equity + benefits'
+        'SkillSync is a small product team building modern hiring workflows; platform reliability is a first-class feature.',
+      compensation: '$160k–$195k USD base + equity',
     },
     {
-      title: `SkillSync — Product Designer ${runId}-2`,
+      title: `SkillSync — Full Stack Engineer (IT) ${runId}-2`,
       location: 'Hybrid — Austin, TX',
-      workType: 'Part-time',
-      status: 'draft',
-      summary: longSummary('Design'),
+      workType: 'Full-time',
+      status: 'active',
+      summary: longSummary('FullStack'),
       keyResponsibilities:
-        '• Lead end-to-end UX for candidate and recruiter journeys.\n• Run usability sessions and synthesize insights.\n• Maintain design system tokens with engineering.',
-      requiredSkills: skillsBlock('Figma, prototyping, accessibility (WCAG), design systems, user research'),
-      preferredSkills: 'Experience with ATS or HR-tech products; motion design a plus.',
+        '• Ship end-to-end features across React and Node services.\n• Improve observability and developer tooling.\n• Partner with design on accessible UI.',
+      requiredSkills: skillsBlock('React, TypeScript, Node.js, MongoDB, REST'),
+      preferredSkills: 'Experience with Vite, micro-frontends, or design systems.',
       aboutCompany:
-        'SkillSync pairs thoughtful UX with pragmatic engineering so recruiters ship faster without losing the human touch.',
-      compensation: '$85–$110/hr depending on seniority'
+        'We iterate quickly with a focus on clarity and maintainability for a small user base that still expects polish.',
+      compensation: '$130k–$165k USD base',
     },
     {
-      title: `SkillSync — Data Engineer (Pipeline) ${runId}-3`,
-      location: 'Remote — EU / UK',
+      title: `SkillSync — IT Support Lead ${runId}-3`,
+      location: 'On-site — Seattle, WA',
+      workType: 'Full-time',
+      status: 'draft',
+      summary: longSummary('ITSupport'),
+      keyResponsibilities:
+        '• Own internal IT operations and endpoint security posture.\n• Automate onboarding/offboarding workflows.\n• Coordinate vendor relationships.',
+      requiredSkills: skillsBlock('Okta or Azure AD, MDM, Windows/macOS administration, scripting'),
+      preferredSkills: 'SOC2 familiarity; experience supporting engineering-heavy orgs.',
+      aboutCompany:
+        'SkillSync keeps internal IT lean but disciplined as we scale hiring workflows for customers.',
+      compensation: '$95k–$120k USD base',
+    },
+    {
+      title: `SkillSync — Security Engineer (IT) ${runId}-4`,
+      location: 'Remote — EU',
       workType: 'Contract',
       status: 'active',
-      summary: longSummary('Data'),
+      summary: longSummary('Security'),
       keyResponsibilities:
-        '• Build batch and streaming pipelines for resume and application analytics.\n• Partner with search and dashboard teams on contracts.\n• Document schemas and SLAs.',
-      requiredSkills: skillsBlock('Python, SQL, Airflow or Dagster, dbt, cloud warehouses (Snowflake/BigQuery)'),
-      preferredSkills: 'MongoDB aggregation experience; familiarity with LLM evaluation datasets.',
+        '• Threat model new services and integrations.\n• Implement secure defaults for auth and file uploads.\n• Run lightweight pen-test cycles with external partners.',
+      requiredSkills: skillsBlock('OWASP ASVS, JWT/OAuth2, AWS IAM, secrets management'),
+      preferredSkills: 'Background in regulated industries or SOC2 programs.',
       aboutCompany:
-        'SkillSync connects hiring signals across services; data quality and privacy are first-class concerns for our team.',
-      compensation: 'Contract: $90–$115 USD/hr, 6-month renewable'
-    },
-    {
-      title: `SkillSync — ML Engineer Intern ${runId}-4`,
-      location: 'On-site — Bengaluru, IN',
-      workType: 'Internship',
-      status: 'closed',
-      summary: longSummary('Intern ML'),
-      keyResponsibilities:
-        '• Assist with resume parsing benchmarks and scoring calibration.\n• Curate evaluation sets and document failure modes.\n• Ship small improvements to analysis microservices.',
-      requiredSkills: skillsBlock('Python, PyTorch or TensorFlow, linear algebra, basic NLP, Git'),
-      preferredSkills: 'Coursework in information retrieval; interest in responsible AI in hiring.',
-      aboutCompany:
-        'SkillSync interns work alongside senior engineers on real ATS scoring paths with mentorship and code review.',
-      compensation: 'Paid internship; stipend per local policy'
+        'Security is prioritized at deployment; this role hardens our multi-service architecture for real customer data.',
+      compensation: '€600–€800/day (contract)',
     },
     {
       title: `SkillSync — Customer Success Manager ${runId}-5`,
@@ -138,26 +123,9 @@ function buildJobs(runId) {
       preferredSkills: 'Background in recruiting or HRIS integrations; comfortable with light SQL.',
       aboutCompany:
         'SkillSync wins when customers trust the platform; CS partners tightly with product and support leadership.',
-      compensation: '$95k–$120k USD base + bonus eligible'
-    }
+      compensation: '$95k–$120k USD base + bonus eligible',
+    },
   ];
-}
-
-async function login() {
-  const res = await fetch(`${API}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error || body.message || `Login failed: HTTP ${res.status}`);
-  }
-  const token = body.accessToken;
-  if (!token) {
-    throw new Error('Login response missing accessToken');
-  }
-  return token;
 }
 
 async function createJob(token, payload) {
@@ -165,9 +133,9 @@ async function createJob(token, payload) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
   const text = await res.text();
   let body;
@@ -187,15 +155,18 @@ const runId = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
 try {
   console.log(`Gateway: ${GATEWAY}`);
-  const token = await login();
-  console.log(`Logged in as ${ADMIN_EMAIL}`);
+  if (!ADMIN_JWT) {
+    throw new Error(
+      'Set SEED_ADMIN_JWT (or ADMIN_JWT) in .env to an admin access token from the app after Google sign-in.'
+    );
+  }
 
   const jobs = buildJobs(runId);
   const created = [];
 
   for (let i = 0; i < jobs.length; i++) {
     const payload = jobs[i];
-    const result = await createJob(token, payload);
+    const result = await createJob(ADMIN_JWT, payload);
     const id = result.data?._id || result.data?.id || result._id;
     created.push({ title: payload.title, id: String(id) });
     console.log(`[${i + 1}/5] Created: ${payload.title} → ${id}`);

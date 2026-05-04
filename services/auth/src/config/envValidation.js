@@ -9,7 +9,8 @@ const requiredEnvVars = [
   'INTERNAL_SERVICE_TOKEN',
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
-  'AWS_S3_BUCKET_NAME'
+  'AWS_S3_BUCKET_NAME',
+  'GOOGLE_CLIENT_ID',
 ];
 
 const optionalEnvVars = {
@@ -18,7 +19,7 @@ const optionalEnvVars = {
   'ALLOWED_ORIGINS': 'http://localhost:3000',
   'LOG_LEVEL': 'info',
   'AWS_REGION': 'us-east-1',
-  'AUTH_SERVICE_PORT': '5001'
+  'AUTH_SERVICE_PORT': '5001',
 };
 
 /**

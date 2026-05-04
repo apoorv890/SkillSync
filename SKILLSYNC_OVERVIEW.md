@@ -142,14 +142,10 @@ Implemented locally on the gateway (not proxied): **`GET /health`**.
 ### `/api/auth` (auth-service)
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| POST | `/register` | – | Create user (always role `user`); returns `{accessToken, refreshToken, user}` |
-| POST | `/login` | – | Returns `{accessToken, refreshToken, user}` |
+| POST | `/google` | – | Body `{ credential }` (Google ID token). Returns `{ accessToken, user }` or `{ needsOnboarding, tempToken }` |
+| POST | `/onboarding` | short-lived JWT | `Authorization: Bearer <tempToken>`; body `{ role, profile }`. Creates user; returns `{ accessToken, user }` |
 | POST | `/logout` | JWT | Blacklists current token |
-| GET  | `/me` | JWT | Current user (no password) |
-| POST | `/refresh` | – | Trade refresh token for new access token |
-| POST | `/forgot-password` | – | Sends OTP (currently logged) |
-| POST | `/verify-otp` | – | Verifies OTP (timing-safe) |
-| POST | `/reset-password` | – | Resets password with OTP |
+| GET  | `/me` | JWT | Current user |
 
 ### `/api/jobs` (jobs-service)
 - `GET /`, `GET /search`, `GET /:id` — public
@@ -192,7 +188,7 @@ Internal-only examples (not browser-facing): `GET/POST /api/internal/...` on aut
 
 | Concern | Location (illustrative) |
 |---------|-------------------------|
-| JWT issue / refresh / blacklist, user profile, OTP | `services/auth` |
+| Google ID token verify, JWT + blacklist, user profile | `services/auth` |
 | Job CRUD, job internal reads (by id, dashboard stats, analytics series) | `services/jobs` |
 | Applications + candidates, S3 resume lifecycle, ATS trigger to worker, internal ATS + dashboard reads for other services | `services/applications` |
 | PDF/DOCX text extraction, Groq scoring, PATCH back to applications | `services/resume-analysis` |
@@ -209,11 +205,11 @@ If you add a **message broker** later, replace the “HTTP POST to resume-analys
 ## 7. Security Model
 
 - **JWT** — `Authorization: Bearer <accessToken>`. Each service verifies signatures with **`JWT_SECRET`**. Blacklist checks for browser traffic go through **auth-service** (see gateway / auth integration). `requireAdmin` patterns live on the owning service.
-- **Rate limiting** — **`express-rate-limit`** on the gateway for `/api`; auth-service keeps tighter limiters on login/register/reset where configured.
-- **Validation** — `express-validator` (and similar) on routes that had it in **auth** / **jobs** / **applications** as ported from the monolith.
+- **Rate limiting** — **`express-rate-limit`** on the gateway for `/api`; auth-service limits `/google` and `/onboarding` in production.
+- **Validation** — per-service (e.g. **jobs** / **applications**) as ported from the monolith.
 - **Input sanitization** — `@skillsync/shared/security` (`sanitizeObjectId`, search sanitizers, etc.) on user-controlled ids and query params.
-- **Timing-safe comparisons** — `timingSafeOtpCompare` for OTP, dummy hash branches in `forgot-password`/`reset-password` to prevent account enumeration.
-- **Password rules** — `>=8 chars, upper, lower, digit, @$!%*?&` (enforced in `User` schema).
+- **Google Sign-In** — `GOOGLE_CLIENT_ID` on auth-service; browser uses the same Web client id via `VITE_GOOGLE_CLIENT_ID`.
+- **Legacy password users** — optional `password` on `User` when `googleId` is absent; rules apply only if a password is set.
 - **CORS allowlist** — `ALLOWED_ORIGINS=comma,separated,list`.
 - **Helmet** — default security headers.
 - **File uploads** — 10 MB cap, MIME-type filtered (PDF, DOCX).
@@ -227,7 +223,7 @@ If you add a **message broker** later, replace the “HTTP POST to resume-analys
 | **MongoDB** | auth, jobs, applications, search (each connects) | `MONGODB_URI` |
 | **AWS S3** | applications (resumes), auth (profile photos) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME` |
 | **Groq AI** | resume-analysis (ATS), applications (candidate bulk scoring) | `GROQ_API_KEY` (see code for model id) |
-| **SMTP/Email** | auth (OTP path; often console in dev) | `EMAIL_SERVICE`, `EMAIL_USER`, `EMAIL_PASS` |
+| **Google OAuth** | auth (`google-auth-library` verify) | `GOOGLE_CLIENT_ID` (same value as `VITE_GOOGLE_CLIENT_ID` in Vite) |
 | **JWT** | all services that verify users | `JWT_SECRET`, `JWT_EXPIRES_IN` |
 | **Internal HMAC** | service-to-service `fetch` clients | `INTERNAL_SERVICE_TOKEN` (+ optional `*_SERVICE_URL` overrides) |
 
@@ -245,7 +241,7 @@ client/src/
 ├── context/AuthContext.tsx     # JWT in localStorage('token'), user object
 ├── contexts/DashboardContext.tsx
 ├── hooks/                      # useAuth, useApi, useApiCache
-├── pages/                      # AuthPage, RegisterPage, ForgotPasswordPage, Dashboard, ProfilePage, SearchPage
+├── pages/                      # AuthPage, RegisterPage, OnboardingPage, ProfilePage, …
 ├── components/
 │   ├── admin-dashboard/        # Admin layout, dashboard, analytics-chart, sidebars, section-cards
 │   ├── user-dashboard/         # Candidate dashboard, section-cards
