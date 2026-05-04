@@ -1,5 +1,6 @@
 const requiredEnvVars = [
   'JWT_SECRET',
+  'MONGODB_URI',
   'INTERNAL_SERVICE_TOKEN',
   'GROQ_API_KEY',
   'AWS_ACCESS_KEY_ID',
@@ -14,8 +15,8 @@ const optionalEnvVars = {
   AWS_REGION: 'us-east-1',
   AUTH_SERVICE_URL: 'http://127.0.0.1:5001',
   JOBS_SERVICE_URL: 'http://127.0.0.1:5002',
-  APPLICATIONS_SERVICE_URL: 'http://127.0.0.1:5003',
-  RESUME_ANALYSIS_SERVICE_PORT: '5004'
+  RESUME_ANALYSIS_SERVICE_URL: 'http://127.0.0.1:5004',
+  APPLICATIONS_SERVICE_PORT: '5003'
 };
 
 export function validateEnv() {
@@ -28,7 +29,7 @@ export function validateEnv() {
   if (missing.length > 0) {
     throw new Error(
       `Missing required environment variables: ${missing.join(', ')}\n` +
-        'Please set these in server/.env before starting the resume-analysis service.'
+        'Please set these in server/.env before starting the applications service.'
     );
   }
   for (const [varName, defaultValue] of Object.entries(optionalEnvVars)) {

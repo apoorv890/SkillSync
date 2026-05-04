@@ -1,6 +1,3 @@
-import { ApiError } from '@skillsync/shared/http';
-import { HTTP_STATUS } from '@skillsync/shared/constants';
-
 const BASE = process.env.RESUME_ANALYSIS_SERVICE_URL || 'http://127.0.0.1:5004';
 const INTERNAL = process.env.INTERNAL_SERVICE_TOKEN || '';
 
@@ -40,19 +37,4 @@ export async function retryAnalysis(applicationId) {
   }
   const data = await res.json();
   return data.score;
-}
-
-export async function getAnalysisStatus(applicationId) {
-  const appsBase = process.env.APPLICATIONS_SERVICE_URL || 'http://127.0.0.1:5003';
-  const res = await fetch(
-    `${appsBase}/api/internal/applications/${encodeURIComponent(applicationId)}/ats`,
-    { headers: internalHeaders() }
-  );
-  if (res.status === 404) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
-  }
-  if (!res.ok) {
-    throw new Error(`ATS status failed: ${res.status}`);
-  }
-  return res.json();
 }

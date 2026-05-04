@@ -38,6 +38,14 @@ const candidateSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  interviewScheduled: {
+    type: Boolean,
+    default: false
+  },
+  interviewDate: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
