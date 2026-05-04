@@ -4,7 +4,6 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get analytics data for jobs created over time
 router.get('/', authenticate, async (req, res) => {
   try {
     const { range = '90d' } = req.query;

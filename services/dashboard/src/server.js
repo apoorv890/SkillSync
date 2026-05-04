@@ -1,2 +1,8 @@
-// dashboard-service - implementation arrives in Phase 9.
-console.log('@skillsync/dashboard-service: scaffold only - implementation pending in Phase 9');
+import app, { logger } from './app.js';
+
+const PORT = Number(process.env.DASHBOARD_SERVICE_PORT || 5006);
+
+app.listen(PORT, () => {
+  logger.info(`Dashboard service listening on port ${PORT}`);
+  console.log(`Dashboard service running on port ${PORT}`);
+});

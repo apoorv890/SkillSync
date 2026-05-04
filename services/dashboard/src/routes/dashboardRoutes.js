@@ -35,7 +35,7 @@ async function attachJobsToApplications(apps) {
   const map = new Map(jobs.map((j) => [String(j._id), j]));
   return apps.map((a) => ({
     ...a,
-    jobId: pickJobSummary(map.get(String(a.jobId))) || a.jobId
+    jobId: pickJobSummary(map.get(rawJobId(a.jobId))) || a.jobId
   }));
 }
 
@@ -45,9 +45,35 @@ async function attachJobsToCandidates(rows) {
   const map = new Map(jobs.map((j) => [String(j._id), j]));
   return rows.map((c) => ({
     ...c,
-    jobId: pickJobSummary(map.get(String(c.jobId))) || c.jobId
+    jobId: pickJobSummary(map.get(rawJobId(c.jobId))) || c.jobId
   }));
 }
+
+/**
+ * Compact stats for the candidate user-dashboard page (legacy path).
+ */
+router.get('/user-stats', authenticate, async (req, res) => {
+  try {
+    if (req.user?.role === 'admin') {
+      return res.status(403).json({ error: 'Use /api/dashboard/stats for admin' });
+    }
+
+    const userId = req.userId || req.user._id;
+    const appStats = await applicationsClient.getUserDashboardApplicationStats(
+      String(userId)
+    );
+
+    return res.json({
+      totalApplications: appStats.totalApplications ?? 0,
+      pendingApplications: appStats.activeApplications ?? 0,
+      rejectedApplications: appStats.rejectedApplications ?? 0,
+      interviewsScheduled: 0
+    });
+  } catch (error) {
+    console.error('Error fetching user-stats:', error);
+    res.status(500).json({ error: 'Failed to fetch user statistics' });
+  }
+});
 
 router.get('/stats', authenticate, async (req, res) => {
   try {

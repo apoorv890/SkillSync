@@ -20,19 +20,6 @@ async function parseJson(res) {
   }
 }
 
-export async function getJobById(id) {
-  const res = await fetch(`${JOBS_BASE}/api/internal/jobs/${encodeURIComponent(id)}`, {
-    headers: internalHeaders()
-  });
-  if (res.status === 404) {
-    return null;
-  }
-  if (!res.ok) {
-    return null;
-  }
-  return parseJson(res);
-}
-
 export async function getJobsByIds(ids) {
   if (!ids?.length) {
     return [];
