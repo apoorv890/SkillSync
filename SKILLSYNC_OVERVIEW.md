@@ -38,7 +38,7 @@ The repo ships a **Vite SPA** (`client/`) and a **decomposed backend**: an API *
 - **Cross-cutting**: Winston logger factory, `ApiError` / `ApiResponse`, `catchAsync`, JWT verify helpers, `requireInternal` / auth-related middlewares, `sanitizeObjectId` and other query sanitizers from `shared/security`
 
 ### Per-service backends (`gateway/`, `services/*`)
-Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JWT_SECRET` where needed, and service-specific deps:
+Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JWT_SECRET` where cookies are used (e.g. auth), and service-specific deps:
 
 | Area | Typical packages | Lives in |
 |------|-------------------|----------|
@@ -48,7 +48,7 @@ Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JW
 | Resume analysis | `pdf-parse`, `mammoth`, `groq-sdk` (no Mongoose for `Application` — HTTP back to applications) | `services/resume-analysis` |
 | Search | `mongoose` read-only models on `jobs` + `candidates` collections | `services/search` |
 | Dashboard | HTTP clients only (no Mongo in-process) | `services/dashboard` |
-| Gateway | `http-proxy-middleware`, `express-rate-limit`, `cookie-parser`, `csurf` for **CSRF token issuance** | `gateway` |
+| Gateway | `http-proxy-middleware`, `express-rate-limit` | `gateway` |
 
 ### Frontend (`client/`)
 - **Framework**: React 18 + TypeScript + Vite (port 3000)
@@ -56,7 +56,7 @@ Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JW
 - **UI**: Tailwind CSS + Radix UI + Tabler/Lucide icons + `recharts`
 - **Forms/validation**: `react-hook-form` + `zod`
 - **State**: Context API (`AuthContext`, `DashboardContext`)
-- **HTTP**: Custom fetch wrapper in `client/src/lib/apiClient.ts` — caching, request deduplication, JWT auth, CSRF token
+- **HTTP**: Custom fetch wrapper in `client/src/lib/apiClient.ts` — caching, request deduplication, JWT auth
 
 ### Process orchestration (root `package.json`)
 - `concurrently` runs **client** (3000), **gateway** (5000), and all **services** via `npm run dev`.
@@ -71,7 +71,7 @@ Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JW
        |  HTTP/JSON  (apiClient → http://localhost:5000/api/…)
        v
 [ Gateway :5000 ] ──proxy──> [ auth:5001 ] [ jobs:5002 ] [ applications:5003 ]
-       |  CSRF cookie + /api/csrf-token          |              |
+       |                                         |              |
        |                                         +--> MongoDB (users, jobs, …)
        |                                         |
        +──────────────proxy────────────────────> [ search:5005 ] [ dashboard:5006 ]
@@ -94,8 +94,7 @@ Each service is its own Express app with `helmet`, `cors`, `cookie-parser` + `JW
 shared/src/                    # @skillsync/shared — logger, db, jwt, middleware, security, constants
 gateway/src/
 ├── loadEnv.js                 # Loads repo root .env
-├── server.js                  # CORS, helmet, cookie-parser(JWT_SECRET), rate limit, proxies, GET /api/csrf-token
-└── middleware/csrf.js         # csurf instance used only for CSRF token route
+└── server.js                  # CORS, helmet, rate limit, proxies
 
 services/<name>/src/
 ├── loadEnv.js                 # Repo root .env (path ../../../.env from service src)
@@ -104,7 +103,7 @@ services/<name>/src/
 ├── config/envValidation.js
 ├── routes/                    # HTTP routes for that bounded context
 ├── controllers/, services/, models/   # as needed per service
-├── middleware/                # auth, csrf (verify on mutating routes), upload, …
+├── middleware/                # auth, upload, …
 └── utils/
 ```
 
@@ -138,7 +137,7 @@ All paths below are under **`http://<gateway>:5000/api/...`**. The gateway (`gat
 | `/api/search` | search-service |
 | `/api/dashboard`, `/api/analytics` | dashboard-service |
 
-Implemented locally on the gateway (not proxied): **`GET /api/csrf-token`**, **`GET /health`**.
+Implemented locally on the gateway (not proxied): **`GET /health`**.
 
 ### `/api/auth` (auth-service)
 | Method | Path | Auth | Purpose |
@@ -154,11 +153,11 @@ Implemented locally on the gateway (not proxied): **`GET /api/csrf-token`**, **`
 
 ### `/api/jobs` (jobs-service)
 - `GET /`, `GET /search`, `GET /:id` — public
-- `POST /`, `PUT /:id`, `DELETE /:id` — admin + CSRF
+- `POST /`, `PUT /:id`, `DELETE /:id` — admin + JWT
 
 ### `/api/applications` (applications-service)
-- `POST /job/:jobId/apply` — JWT + CSRF + multer upload `resume`. Triggers ATS via **HTTP** to `resume-analysis-service` (fire-and-forget), which **PATCH**es applications internal routes when done.
-- `DELETE /job/:jobId/withdraw` — JWT + CSRF
+- `POST /job/:jobId/apply` — JWT + multer upload `resume`. Triggers ATS via **HTTP** to `resume-analysis-service` (fire-and-forget), which **PATCH**es applications internal routes when done.
+- `DELETE /job/:jobId/withdraw` — JWT
 - `GET /job/:jobId/status`, `GET /my-applications` — JWT
 - Admin: `GET /job/:jobId/all`, `GET /resume/:applicationId` (returns S3 pre-signed URL, 1h), `POST /:id/retry-analysis`, `GET /:id/ats-status`, `PATCH /:id/status`
 
@@ -180,11 +179,10 @@ Implemented locally on the gateway (not proxied): **`GET /api/csrf-token`**, **`
 
 ### `/api/users` (auth-service)
 - `GET /profile`, `PUT /profile`
-- `POST /profile/photo`, `DELETE /profile/photo` — multipart, S3-backed, CSRF
+- `POST /profile/photo`, `DELETE /profile/photo` — multipart, S3-backed, JWT
 
-### Health / CSRF
+### Health
 - **`GET /health`** — gateway only (JSON includes upstream hints).
-- **`GET /api/csrf-token`** — **gateway** issues the double-submit cookie + token (same `JWT_SECRET` as other services’ `cookie-parser`).
 
 Internal-only examples (not browser-facing): `GET/POST /api/internal/...` on auth, jobs, applications (see each service’s `internalRoutes` / `jobInternalReadService` / `internalReadService`).
 
@@ -200,7 +198,7 @@ Internal-only examples (not browser-facing): `GET/POST /api/internal/...` on aut
 | PDF/DOCX text extraction, Groq scoring, PATCH back to applications | `services/resume-analysis` |
 | Full-text / unified search across Mongo `jobs` + `candidates` | `services/search` |
 | Dashboard + analytics aggregation over HTTP to jobs/applications + auth for JWT user | `services/dashboard` |
-| Proxy table, rate limit, CSRF **token** route | `gateway` |
+| Proxy table, rate limit | `gateway` |
 
 **Resume text** is still processed only in memory inside **resume-analysis-service** and is not stored as a long-lived field in Mongo.
 
@@ -211,7 +209,6 @@ If you add a **message broker** later, replace the “HTTP POST to resume-analys
 ## 7. Security Model
 
 - **JWT** — `Authorization: Bearer <accessToken>`. Each service verifies signatures with **`JWT_SECRET`**. Blacklist checks for browser traffic go through **auth-service** (see gateway / auth integration). `requireAdmin` patterns live on the owning service.
-- **CSRF** — **Gateway** exposes `GET /api/csrf-token` (sets cookie). Mutating routes on **auth / jobs / applications** still use **`csurf`** to validate `X-CSRF-Token` + cookie on those processes.
 - **Rate limiting** — **`express-rate-limit`** on the gateway for `/api`; auth-service keeps tighter limiters on login/register/reset where configured.
 - **Validation** — `express-validator` (and similar) on routes that had it in **auth** / **jobs** / **applications** as ported from the monolith.
 - **Input sanitization** — `@skillsync/shared/security` (`sanitizeObjectId`, search sanitizers, etc.) on user-controlled ids and query params.
@@ -244,7 +241,7 @@ If you add a **message broker** later, replace the “HTTP POST to resume-analys
 client/src/
 ├── App.tsx                     # Routes, role-based layout switch
 ├── main.tsx                    # ReactDOM bootstrap
-├── lib/apiClient.ts            # Central fetch wrapper (auth + CSRF + cache + dedup)
+├── lib/apiClient.ts            # Central fetch wrapper (auth + cache + dedup)
 ├── context/AuthContext.tsx     # JWT in localStorage('token'), user object
 ├── contexts/DashboardContext.tsx
 ├── hooks/                      # useAuth, useApi, useApiCache
@@ -273,12 +270,12 @@ The frontend is a stateless SPA; it reaches the backend purely through `apiClien
 
 ## 10. Cross-cutting contracts
 
-1. **Browser traffic** — SPA uses `Authorization: Bearer <jwt>`; for mutating calls, obtain CSRF from **`GET http://localhost:5000/api/csrf-token`** (gateway) with **`credentials: 'include'`**, then send **`X-CSRF-Token`** to the downstream service through the gateway (cookie must round-trip).
+1. **Browser traffic** — SPA uses `Authorization: Bearer <jwt>` on protected and mutating routes through the gateway.
 2. **Role enforcement** — `admin` vs `user` is enforced in **service** code from JWT claims after `verifyToken`; never trust the client alone.
 3. **ObjectId sanitization** — continue using **`sanitizeObjectId`** / shared security helpers on any user-controlled id before Mongo queries.
 4. **Resume text** — parsed in **resume-analysis-service** memory only; not written as a durable resume body field in Mongo.
 5. **Duplicate applies** — unique `{userId, jobId}` on `applications` plus withdraw/reapply rules in **applications-service** `ApplicationService`.
-6. **Service-to-service** — `X-Internal-Token: INTERNAL_SERVICE_TOKEN` on `*/api/internal/*` routes; no CSRF on those calls.
+6. **Service-to-service** — `X-Internal-Token: INTERNAL_SERVICE_TOKEN` on `*/api/internal/*` routes.
 
 ---
 
@@ -288,7 +285,7 @@ Aligned with [ADR 0001](./docs/adr/0001-microservices-split.md):
 
 | Deployable | Port | Owns / proxies |
 |------------|------|------------------|
-| **Gateway** | 5000 | Proxies table in §5; `GET /api/csrf-token`, `GET /health`, rate limit |
+| **Gateway** | 5000 | Proxies table in §5; `GET /health`, rate limit |
 | **auth-service** | 5001 | `users`, `tokenblacklists`, `/api/auth/*`, `/api/users/*` |
 | **jobs-service** | 5002 | `jobs`, `/api/jobs/*`, internal job reads |
 | **applications-service** | 5003 | `applications`, `candidates`, `/api/applications/*`, `/api/candidates/*`, internal ATS + dashboard helpers |
@@ -317,4 +314,4 @@ Aligned with [ADR 0001](./docs/adr/0001-microservices-split.md):
 
 ---
 
-For integration with **another system**, treat the **gateway** as the only public HTTP surface, reuse JWT + CSRF rules above, and for machine-to-machine server calls prefer **`INTERNAL_SERVICE_TOKEN`** on documented internal routes rather than sharing user JWTs.
+For integration with **another system**, treat the **gateway** as the only public HTTP surface, reuse JWT rules above, and for machine-to-machine server calls prefer **`INTERNAL_SERVICE_TOKEN`** on documented internal routes rather than sharing user JWTs.

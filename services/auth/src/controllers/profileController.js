@@ -87,7 +87,7 @@ export const uploadUserProfilePhoto = async (req, res) => {
     // Update user record
     user.profilePhotoUrl = url;
     user.profilePhotoKey = key;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     logCompact(req, 'Profile photo uploaded successfully');
 
@@ -143,7 +143,7 @@ export const deleteUserProfilePhoto = async (req, res) => {
     const oldKey = user.profilePhotoKey;
     user.profilePhotoUrl = null;
     user.profilePhotoKey = null;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     // Log the deletion
     console.log(`Profile photo removed for user ${user._id}: ${oldKey}`);
@@ -191,7 +191,9 @@ export const updateUserProfile = async (req, res) => {
       user.email = email;
     }
 
-    await user.save();
+    // validateModifiedOnly avoids re-running the strict password validator
+    // against the already-hashed password stored on the loaded document.
+    await user.save({ validateModifiedOnly: true });
 
     res.json({
       success: true,

@@ -14,7 +14,7 @@ Convert the backend into 7 services + 1 API gateway, deployed independently:
 
 | Service | Port | Owns |
 |---|---|---|
-| `api-gateway` | 5000 | JWT verification, blacklist check, CSRF, rate limiting, CORS, proxying. Single ingress for the SPA. |
+| `api-gateway` | 5000 | Rate limiting, CORS, proxying. Single ingress for the SPA. |
 | `auth-service` | 5001 | `users`, `tokenblacklists`, `/auth/*`, `/users/*`, profile photos, OTP. |
 | `jobs-service` | 5002 | `jobs`, `/jobs/*`. |
 | `applications-service` | 5003 | `applications`, `candidates`, `/applications/*`, `/candidates/*`. |
@@ -28,7 +28,7 @@ Convert the backend into 7 services + 1 API gateway, deployed independently:
 2. **Synchronous HTTP for inter-service communication.** No message broker. The current in-process `setImmediate` ATS pipeline becomes a fire-and-forget HTTP POST from `applications-service` to `resume-analysis-service`, which calls back via a `PATCH` to `applications-service`. Same observable behavior; no new external infrastructure.
 3. **Logical bounded contexts on a single MongoDB.** Each service connects independently and only writes to the collections it owns. DB-per-service is left as a follow-up; this keeps the refactor purely structural.
 4. **Defense-in-depth auth with shared JWT secret.** Every service verifies JWT signatures locally with `JWT_SECRET`. Only the gateway consults the `tokenblacklists` collection (via `auth-service`) so internal calls don't hop. Service-to-service traffic uses an `INTERNAL_SERVICE_TOKEN` HMAC header instead of user JWTs.
-5. **CSRF token issuance on the gateway; validation on services.** `GET /api/csrf-token` runs on the gateway (same `JWT_SECRET` cookie signing as downstream). Rate limiting is applied at the gateway on `/api`. Internal service calls are not CSRF-protected.
+5. **No CSRF layer.** Mutating browser calls use `Authorization: Bearer <JWT>` only; each service verifies JWTs with `JWT_SECRET`. Rate limiting is applied at the gateway on `/api`. Internal service calls use `INTERNAL_SERVICE_TOKEN` instead of user JWTs.
 6. **`@skillsync/shared` package** holds cross-cutting code: `ApiError`, `ApiResponse`, `catchAsync`, Winston logger factory, Mongoose connect helper, JWT verify, `requireAuth` middleware, `requireInternal` middleware, `sanitizeObjectId`, `timingSafeOtpCompare`, HTTP/status constants, S3 helper. Mongoose models are **not** shared - each service owns its schema; read-only services (search, dashboard) declare minimal duplicated schemas.
 7. **Resume text never persisted** (existing invariant). It only flows through `resume-analysis-service` memory and is GC'd.
 8. **Strangler-fig migration.** Stand up the gateway first, proxying to the legacy monolith, then extract services one at a time until the legacy `server/` package is removed (Phase 10). The gateway remains the single ingress for the SPA.

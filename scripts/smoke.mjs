@@ -3,7 +3,7 @@
  */
 const base = (process.env.SMOKE_BASE_URL || 'http://127.0.0.1:5000').replace(/\/$/, '');
 
-const paths = ['/health', '/api/csrf-token'];
+const paths = ['/health'];
 
 async function main() {
   for (const p of paths) {

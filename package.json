@@ -28,7 +28,8 @@
     "dev:docker": "docker compose up --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f gateway",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "seed:five-jobs": "node scripts/seedFiveJobs.mjs"
   },
   "dependencies": {
     "concurrently": "^8.2.2"

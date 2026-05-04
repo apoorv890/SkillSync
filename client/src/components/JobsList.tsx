@@ -9,6 +9,7 @@ import { Input } from './ui/input';
 import FilterPanel from './FilterPanel';
 import { useDashboardRefresh } from '../contexts/DashboardContext';
 import { useApi } from '../hooks/useApi';
+import { useAuth } from '../hooks/useAuth';
 
 const JobCardSkeleton = () => (
   <Card>
@@ -26,6 +27,8 @@ const JobCardSkeleton = () => (
 );
 
 const JobsList = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { refreshTrigger } = useDashboardRefresh();
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,8 +38,11 @@ const JobsList = () => {
     location: 'all',
   });
 
+  // Candidates only see published jobs; admins see drafts/closed too
+  const jobsEndpoint = isAdmin ? '/jobs' : '/jobs?status=active';
+
   // Use API hook with deduplication and caching
-  const { data: jobsResponse, loading } = useApi<{ data?: unknown[] } | unknown[]>('/jobs', {
+  const { data: jobsResponse, loading } = useApi<{ data?: unknown[] } | unknown[]>(jobsEndpoint, {
     refetchTrigger: refreshTrigger,
     cacheTime: 3 * 60 * 1000, // 3 minutes cache for jobs list
   });
@@ -58,16 +64,20 @@ const JobsList = () => {
   }, [jobs]);
 
   const filterConfig = [
-    {
-      id: 'status',
-      label: 'Status',
-      type: 'select',
-      options: [
-        { label: 'Active', value: 'active' },
-        { label: 'Draft', value: 'draft' },
-        { label: 'Closed', value: 'closed' },
-      ],
-    },
+    ...(isAdmin
+      ? [
+          {
+            id: 'status',
+            label: 'Status',
+            type: 'select' as const,
+            options: [
+              { label: 'Active', value: 'active' },
+              { label: 'Draft', value: 'draft' },
+              { label: 'Closed', value: 'closed' },
+            ],
+          },
+        ]
+      : []),
     {
       id: 'department',
       label: 'Department',
@@ -197,16 +207,22 @@ const JobsList = () => {
                   <Briefcase className="h-10 w-10 text-primary" />
                 </div>
               </div>
-              <h2 className="text-2xl font-semibold mb-2">No job postings yet</h2>
+              <h2 className="text-2xl font-semibold mb-2">
+                {isAdmin ? 'No job postings yet' : 'No open positions right now'}
+              </h2>
               <p className="text-muted-foreground mb-6">
-                Get started by creating your first job posting
+                {isAdmin
+                  ? 'Get started by creating your first job posting'
+                  : 'There are no active listings at the moment. Draft or closed jobs are not shown here.'}
               </p>
-              <Button asChild>
-                <Link to="/create-job">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Your First Job
-                </Link>
-              </Button>
+              {isAdmin && (
+                <Button asChild>
+                  <Link to="/create-job">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Job
+                  </Link>
+                </Button>
+              )}
             </Card>
           ) : (
             <>
