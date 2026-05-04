@@ -4,6 +4,8 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Load VITE_* from monorepo root `.env` (same file as GOOGLE_CLIENT_ID for auth-service)
+  envDir: path.resolve(__dirname, '..'),
   plugins: [react()],
   resolve: {
     alias: {
