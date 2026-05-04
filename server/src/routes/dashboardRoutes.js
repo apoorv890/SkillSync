@@ -1,8 +1,6 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import * as jobsClient from '../services/jobsClient.js';
-import Candidate from '../models/Candidate.js';
-import Application from '../models/Application.js';
+import * as applicationsClient from '../services/applicationsClient.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -21,8 +19,18 @@ function pickJobSummary(job) {
   };
 }
 
+function rawJobId(jobRef) {
+  if (jobRef == null) {
+    return '';
+  }
+  if (typeof jobRef === 'object' && jobRef._id != null) {
+    return String(jobRef._id);
+  }
+  return String(jobRef);
+}
+
 async function attachJobsToApplications(apps) {
-  const jobIds = [...new Set(apps.map((a) => String(a.jobId)).filter(Boolean))];
+  const jobIds = [...new Set(apps.map((a) => rawJobId(a.jobId)).filter(Boolean))];
   const jobs = await jobsClient.getJobsByIds(jobIds);
   const map = new Map(jobs.map((j) => [String(j._id), j]));
   return apps.map((a) => ({
@@ -32,7 +40,7 @@ async function attachJobsToApplications(apps) {
 }
 
 async function attachJobsToCandidates(rows) {
-  const jobIds = [...new Set(rows.map((c) => String(c.jobId)).filter(Boolean))];
+  const jobIds = [...new Set(rows.map((c) => rawJobId(c.jobId)).filter(Boolean))];
   const jobs = await jobsClient.getJobsByIds(jobIds);
   const map = new Map(jobs.map((j) => [String(j._id), j]));
   return rows.map((c) => ({
@@ -41,11 +49,10 @@ async function attachJobsToCandidates(rows) {
   }));
 }
 
-// Combined stats endpoint - returns data based on user role (MUST BE FIRST)
 router.get('/stats', authenticate, async (req, res) => {
   try {
     const userRole = req.user?.role;
-    
+
     if (userRole === 'admin') {
       const {
         totalJobs,
@@ -53,8 +60,8 @@ router.get('/stats', authenticate, async (req, res) => {
         jobsByStatus,
         recentJobs
       } = await jobsClient.getAdminDashboardJobStats();
-      const totalCandidates = await Candidate.countDocuments();
-      const interviewsScheduled = await Candidate.countDocuments({ interviewScheduled: true });
+      const { totalCandidates, interviewsScheduled } =
+        await applicationsClient.getAdminCandidateCounts();
 
       return res.json({
         totalJobs,
@@ -64,78 +71,26 @@ router.get('/stats', authenticate, async (req, res) => {
         jobsByStatus,
         recentJobs
       });
-    } else {
-      // Return user stats
-      const userId = req.userId || req.user._id;
-      
-      const totalApplications = await Application.countDocuments({ userId });
-      
-      // Pending = Under Review + applied
-      const activeApplications = await Application.countDocuments({ 
-        userId,
-        status: { $in: ['Under Review', 'applied'] }
-      });
-      
-      // Accepted = Shortlisted + Hired
-      const acceptedApplications = await Application.countDocuments({ 
-        userId,
-        status: { $in: ['Shortlisted', 'Hired'] }
-      });
-      
-      // Rejected
-      const rejectedApplications = await Application.countDocuments({ 
-        userId,
-        status: 'Rejected'
-      });
-      
-      const avgScoreResult = await Application.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-        { $match: { 'atsScore.score': { $ne: null } } },
-        {
-          $group: {
-            _id: null,
-            avgScore: { $avg: '$atsScore.score' }
-          }
-        }
-      ]);
-      
-      const averageScore = avgScoreResult.length > 0 
-        ? Math.round(avgScoreResult[0].avgScore) 
-        : 0;
-      
-      const applicationsByStatus = {
-        applied: await Application.countDocuments({ userId, status: 'applied' }),
-        underReview: await Application.countDocuments({ userId, status: 'Under Review' }),
-        shortlisted: await Application.countDocuments({ userId, status: 'Shortlisted' }),
-        hired: await Application.countDocuments({ userId, status: 'Hired' }),
-        rejected: rejectedApplications,
-        withdrawn: await Application.countDocuments({ userId, status: 'withdrawn' })
-      };
-      
-      const recentApplicationsRaw = await Application.find({ userId })
-        .sort({ appliedAt: -1 })
-        .limit(10)
-        .lean();
-
-      const recentApplications = await attachJobsToApplications(recentApplicationsRaw);
-
-      return res.json({
-        totalApplications,
-        activeApplications,
-        acceptedApplications,
-        rejectedApplications,
-        averageScore,
-        applicationsByStatus,
-        recentApplications
-      });
     }
+
+    const userId = req.userId || req.user._id;
+
+    const appStats = await applicationsClient.getUserDashboardApplicationStats(
+      String(userId)
+    );
+
+    const recentApplications = await attachJobsToApplications(appStats.recentApplications);
+
+    return res.json({
+      ...appStats,
+      recentApplications
+    });
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
   }
 });
 
-// Admin Dashboard Stats
 router.get('/admin', async (req, res) => {
   try {
     const {
@@ -145,9 +100,8 @@ router.get('/admin', async (req, res) => {
       recentJobs
     } = await jobsClient.getAdminDashboardJobStats();
 
-    const totalCandidates = await Candidate.countDocuments();
-
-    const interviewsScheduled = await Candidate.countDocuments({ interviewScheduled: true });
+    const { totalCandidates, interviewsScheduled } =
+      await applicationsClient.getAdminCandidateCounts();
 
     res.json({
       totalJobs,
@@ -163,54 +117,14 @@ router.get('/admin', async (req, res) => {
   }
 });
 
-// User Dashboard Stats
 router.get('/user', async (req, res) => {
   try {
-    // For now, return mock data since we don't have user-specific applications
-    // In a real app, you'd filter by user ID from authentication
-    
-    const totalApplications = await Candidate.countDocuments();
-    const activeApplications = await Candidate.countDocuments({ 
-      interviewScheduled: false 
-    });
-    const interviewsScheduled = await Candidate.countDocuments({ 
-      interviewScheduled: true 
-    });
-    
-    // Calculate average match score
-    const avgScoreResult = await Candidate.aggregate([
-      {
-        $group: {
-          _id: null,
-          avgScore: { $avg: '$atsScore' }
-        }
-      }
-    ]);
-    
-    const avgMatchScore = avgScoreResult.length > 0 
-      ? Math.round(avgScoreResult[0].avgScore) 
-      : 0;
-    
-    // Application status breakdown
-    const applicationsByStatus = {
-      pending: await Candidate.countDocuments({ interviewScheduled: false }),
-      interviewed: await Candidate.countDocuments({ interviewScheduled: true }),
-      rejected: 0 // This would need a status field in the Candidate model
-    };
-    
-    const recentApplicationsRaw = await Candidate.find()
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean();
+    const payload = await applicationsClient.getLegacyUserDashboardCandidateMock();
 
-    const recentApplications = await attachJobsToCandidates(recentApplicationsRaw);
+    const recentApplications = await attachJobsToCandidates(payload.recentApplications);
 
     res.json({
-      totalApplications,
-      activeApplications,
-      interviewsScheduled,
-      avgMatchScore,
-      applicationsByStatus,
+      ...payload,
       recentApplications
     });
   } catch (error) {

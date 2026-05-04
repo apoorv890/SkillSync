@@ -64,8 +64,6 @@ class ApplicationController {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
     }
 
-    // Get the actual application to find its ID
-    const Application = (await import('../models/Application.js')).default;
     const application = await Application.findOne({ userId: candidateId, jobId });
 
     await ApplicationService.withdrawApplication(application._id, candidateId);
@@ -152,7 +150,7 @@ class ApplicationController {
   getATSStatus = catchAsync(async (req, res) => {
     const { applicationId } = req.params;
 
-    const status = await resumeAnalysisClient.getAnalysisStatus(applicationId);
+    const status = await ApplicationService.getAtsStatus(applicationId);
 
     return ApiResponse.success(res, 'ATS status retrieved successfully', status);
   });

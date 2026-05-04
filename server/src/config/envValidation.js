@@ -6,10 +6,6 @@
 const requiredEnvVars = [
   'JWT_SECRET',
   'MONGODB_URI',
-  'GROQ_API_KEY',
-  'AWS_ACCESS_KEY_ID',
-  'AWS_SECRET_ACCESS_KEY',
-  'AWS_S3_BUCKET_NAME',
   'INTERNAL_SERVICE_TOKEN'
 ];
 
@@ -22,7 +18,8 @@ const optionalEnvVars = {
   'AWS_REGION': 'us-east-1',
   'AUTH_SERVICE_URL': 'http://127.0.0.1:5001',
   'JOBS_SERVICE_URL': 'http://127.0.0.1:5002',
-  'RESUME_ANALYSIS_SERVICE_URL': 'http://127.0.0.1:5004'
+  'RESUME_ANALYSIS_SERVICE_URL': 'http://127.0.0.1:5004',
+  'APPLICATIONS_SERVICE_URL': 'http://127.0.0.1:5003'
 };
 
 /**

@@ -1,6 +1,4 @@
 import express from 'express';
-import applicationRoutes from './applicationRoutes.js';
-import candidateRoutes from './candidateRoutes.js';
 import searchRoutes from './searchRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import analyticsRoutes from './analyticsRoutes.js';
@@ -17,8 +15,6 @@ router.get('/csrf-token', getCsrfToken, (req, res) => {
 });
 
 // Mount all routes
-router.use('/applications', applicationRoutes);
-router.use('/candidates', candidateRoutes);
 router.use('/search', searchRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/analytics', analyticsRoutes);

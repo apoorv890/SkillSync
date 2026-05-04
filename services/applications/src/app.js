@@ -2,11 +2,17 @@ import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import logger from '@skillsync/shared/logger';
+import connectDB from '@skillsync/shared/db';
 import { validateEnv } from './config/envValidation.js';
+import applicationRoutes from './routes/applicationRoutes.js';
+import candidateRoutes from './routes/candidateRoutes.js';
 import internalRoutes from './routes/internalRoutes.js';
 
 validateEnv();
+
+const jwtSecret = process.env.JWT_SECRET;
 
 const app = express();
 
@@ -27,21 +33,25 @@ const corsOptions = {
 
 app.use(helmet());
 app.use(cors(corsOptions));
+app.use(cookieParser(jwtSecret));
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({
     status: 'OK',
-    service: 'resume-analysis-service',
+    service: 'applications-service',
     timestamp: new Date().toISOString()
   });
 });
 
 app.use('/api/internal', internalRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/candidates', candidateRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
-export { logger };
+export { connectDB, logger };
 export default app;

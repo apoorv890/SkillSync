@@ -333,6 +333,24 @@ class ApplicationService {
       throw error;
     }
   }
+
+  async getAtsStatus(applicationId) {
+    const sanitizedAppId = sanitizeObjectId(applicationId);
+    if (!sanitizedAppId) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid application ID');
+    }
+    const application = await Application.findById(sanitizedAppId).select('atsScore').lean();
+    if (!application) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
+    }
+    const a = application.atsScore || {};
+    return {
+      status: a.status || 'pending',
+      score: a.score ?? null,
+      analyzedAt: a.analyzedAt || null,
+      error: a.error || null
+    };
+  }
 }
 
 export default new ApplicationService();

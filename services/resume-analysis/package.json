@@ -19,7 +19,6 @@
     "groq-sdk": "^0.16.0",
     "helmet": "^8.1.0",
     "mammoth": "^1.11.0",
-    "mongoose": "^8.2.0",
     "pdf-parse": "^1.1.1",
     "winston": "^3.18.3"
   }
