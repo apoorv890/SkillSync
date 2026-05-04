@@ -41,7 +41,7 @@ const AppRoutes = () => {
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
-  if (isAuthenticated === undefined || (isAuthenticated && !user)) {
+  if (isAuthenticated && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
