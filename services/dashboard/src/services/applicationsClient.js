@@ -50,17 +50,3 @@ export async function getLegacyUserDashboardCandidateMock() {
   }
   return parseJson(res);
 }
-
-export async function getApplicationAtsStatus(applicationId) {
-  const res = await fetch(
-    `${BASE}/api/internal/applications/${encodeURIComponent(applicationId)}/ats`,
-    { headers: internalHeaders() }
-  );
-  if (res.status === 404) {
-    return null;
-  }
-  if (!res.ok) {
-    throw new Error(`applications ats status failed: ${res.status}`);
-  }
-  return parseJson(res);
-}

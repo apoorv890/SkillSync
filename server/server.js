@@ -4,7 +4,6 @@ dotenv.config();
 
 import app from './src/app.js';
 import logger from '@skillsync/shared/logger';
-import connectDB from '@skillsync/shared/db';
 
 // Default 5500 when placed behind the API gateway (port 5000). Override with PORT in .env.
 const PORT = process.env.PORT || 5500;
@@ -12,16 +11,13 @@ const PORT = process.env.PORT || 5500;
 // Declare server variable in outer scope
 let server;
 
-// Connect to database before starting server
-const startServer = async () => {
+const startServer = () => {
   try {
-    await connectDB();
     server = app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
-  console.log(`Server running on port ${PORT}`);
-});
+      logger.info(`Server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
+    });
 
-    // Setup graceful shutdown handlers
     setupGracefulShutdown();
   } catch (error) {
     logger.error('Failed to start server:', error);

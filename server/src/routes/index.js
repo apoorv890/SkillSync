@@ -1,6 +1,4 @@
 import express from 'express';
-import dashboardRoutes from './dashboardRoutes.js';
-import analyticsRoutes from './analyticsRoutes.js';
 import { getCsrfToken } from '../middleware/csrf.js';
 
 const router = express.Router();
@@ -14,8 +12,6 @@ router.get('/csrf-token', getCsrfToken, (req, res) => {
 });
 
 // Mount all routes
-router.use('/dashboard', dashboardRoutes);
-router.use('/analytics', analyticsRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
