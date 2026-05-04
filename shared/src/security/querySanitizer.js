@@ -103,15 +103,18 @@ export function sanitizeNumericFilter(value, min = 0, max = 100) {
 }
 
 export function sanitizeObjectId(id) {
-  if (!id || typeof id !== 'string') {
+  if (!id) {
     return null;
   }
 
-  if (!/^[a-f\d]{24}$/i.test(id.trim())) {
+  // Convert ObjectId or other types to string
+  const str = typeof id === 'string' ? id : String(id);
+
+  if (!/^[a-f\d]{24}$/i.test(str.trim())) {
     return null;
   }
 
-  return id.trim();
+  return str.trim();
 }
 
 export function sanitizePrefix(prefix) {

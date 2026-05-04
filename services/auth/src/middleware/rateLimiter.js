@@ -1,12 +1,15 @@
 import rateLimit from 'express-rate-limit';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 /**
  * Rate limiter for authentication endpoints
- * Limits: 5 requests per 15 minutes per IP
+ * Production: 5 / 15 min per IP. Development: effectively disabled
+ * (1000 / 15 min) so registration/login flows are easy to iterate on.
  */
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 5 : 1000,
   message: {
     success: false,
     error: 'Too many authentication attempts, please try again later'
@@ -17,11 +20,11 @@ export const authLimiter = rateLimit({
 
 /**
  * Rate limiter for password reset endpoints
- * Limits: 3 requests per hour per IP
+ * Production: 3 / hour per IP. Development: 1000 / hour.
  */
 export const passwordResetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 password reset attempts per hour
+  windowMs: 60 * 60 * 1000,
+  max: isProd ? 3 : 1000,
   message: {
     success: false,
     error: 'Too many password reset attempts, please try again later'

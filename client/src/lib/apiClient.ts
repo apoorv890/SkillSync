@@ -14,10 +14,6 @@ const pendingRequests = new Map<string, Promise<unknown>>();
 // Default cache duration: 5 minutes
 const DEFAULT_CACHE_TIME = 5 * 60 * 1000;
 
-// CSRF token cache
-let csrfToken: string | null = null;
-let csrfTokenPromise: Promise<string> | null = null;
-
 interface RequestOptions extends RequestInit {
   skipCache?: boolean;
   cacheTime?: number;
@@ -38,50 +34,6 @@ function getCacheKey(url: string, options?: RequestOptions): string {
  */
 function getAuthToken(): string | null {
   return localStorage.getItem('token');
-}
-
-/**
- * Fetch CSRF token from server
- */
-async function getCsrfToken(): Promise<string> {
-  // Return cached token if available
-  if (csrfToken) {
-    return csrfToken;
-  }
-
-  // Return existing promise if already fetching
-  if (csrfTokenPromise) {
-    return csrfTokenPromise;
-  }
-
-  // Fetch new token
-  csrfTokenPromise = fetch(`${API_BASE_URL}/csrf-token`, {
-    method: 'GET',
-    credentials: 'include', // Include cookies for CSRF token
-  })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error('Failed to fetch CSRF token');
-      }
-      const data = await response.json();
-      csrfToken = data.csrfToken;
-      csrfTokenPromise = null;
-      return csrfToken;
-    })
-    .catch((error) => {
-      csrfTokenPromise = null;
-      throw error;
-    });
-
-  return csrfTokenPromise;
-}
-
-/**
- * Clear CSRF token (call after logout or token refresh)
- */
-function clearCsrfToken(): void {
-  csrfToken = null;
-  csrfTokenPromise = null;
 }
 
 /**
@@ -132,22 +84,10 @@ async function apiRequest<T>(
     }
   }
 
-  // Add CSRF token for state-changing methods
-  const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-  if (isStateChanging) {
-    try {
-      const token = await getCsrfToken();
-      headers['X-CSRF-Token'] = token;
-    } catch (error) {
-      console.warn('Failed to get CSRF token:', error);
-    }
-  }
-
   // Create the request promise
   const requestPromise = fetch(url, {
     ...fetchOptions,
     headers,
-    credentials: 'include', // Include cookies for CSRF token
   })
     .then(async (response) => {
       // Remove from pending requests
@@ -237,24 +177,21 @@ export const apiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Add CSRF token for uploads
-    return getCsrfToken()
-      .then((csrfToken) => {
-        headers['X-CSRF-Token'] = csrfToken;
-        return fetch(url, {
-          ...options,
-          method: 'POST',
-          headers,
-          body: formData,
-          credentials: 'include', // Include cookies for CSRF token
-        });
-      })
-      .then(async (response) => {
+    return fetch(url, {
+      ...options,
+      method: 'POST',
+      headers,
+      body: formData,
+    }).then(async (response) => {
       if (!response.ok) {
         const error = await response.json().catch(() => ({
           error: `HTTP ${response.status}: ${response.statusText}`,
         }));
-        throw new Error(error.error || error.message || 'Upload failed');
+        throw new Error(
+          (typeof error.error === 'string' && error.error) ||
+            (typeof error.message === 'string' && error.message) ||
+            'Upload failed'
+        );
       }
       return response.json() as Promise<T>;
     });
@@ -264,7 +201,6 @@ export const apiClient = {
   clearCache: () => {
     responseCache.clear();
     pendingRequests.clear();
-    clearCsrfToken();
   },
 
   // Clear specific cache entry

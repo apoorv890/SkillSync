@@ -2,17 +2,11 @@ import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import rateLimit from 'express-rate-limit';
 import logger from '@skillsync/shared/logger';
-import { getCsrfToken } from './middleware/csrf.js';
 
 const PORT = Number(process.env.GATEWAY_PORT || 5000);
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-  throw new Error('JWT_SECRET is required for the gateway (CSRF cookie signing)');
-}
 
 const AUTH_UPSTREAM =
   process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:5001';
@@ -55,7 +49,6 @@ const app = express();
 
 app.use(helmet());
 app.use(cors(corsOptions));
-app.use(cookieParser(jwtSecret));
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -72,13 +65,6 @@ app.get('/health', (_req, res) => {
 
 app.use('/api', apiLimiter);
 
-app.get('/api/csrf-token', getCsrfToken, (req, res) => {
-  res.json({
-    success: true,
-    csrfToken: req.csrfToken()
-  });
-});
-
 const proxyError =
   (label) => (err, _req, res) => {
     logger.error(`Gateway proxy error (${label}): ${err.message}`);
@@ -91,9 +77,11 @@ const proxyError =
   };
 
 /** http-proxy-middleware v3: Express strips the mount path from req.url before proxying.
- * Upstream services still expect full paths like /api/auth/register — rewrite them back. */
+ * Upstream services still expect full paths like /api/auth/register — rewrite them back.
+ * `xfwd: true` forwards X-Forwarded-* so upstream rate limiters can key off real client IP. */
 const proxyOpts = {
   changeOrigin: true,
+  xfwd: true,
   proxyTimeout: 120000,
   timeout: 120000,
   logLevel: 'warn'

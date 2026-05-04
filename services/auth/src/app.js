@@ -13,6 +13,7 @@ import internalRoutes from './routes/internalRoutes.js';
 validateEnv();
 
 const app = express();
+app.set('trust proxy', 1);
 
 const corsOptions = {
   origin(origin, callback) {

@@ -183,7 +183,7 @@ router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
     if (user) {
       user.resetPasswordOTP = hashedOTP;
       user.resetPasswordOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-      await user.save();
+      await user.save({ validateModifiedOnly: true });
       
       // TODO: Send OTP via email (for now, log it to console)
       console.log(`OTP for ${email}: ${otp}`);

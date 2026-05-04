@@ -2,7 +2,7 @@
   "name": "@skillsync/gateway",
   "version": "1.0.0",
   "private": true,
-  "description": "API gateway for SkillSync (JWT, blacklist, CSRF, rate limit, CORS, proxy)",
+  "description": "API gateway for SkillSync (rate limit, CORS, proxy to services)",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -11,9 +11,7 @@
   },
   "dependencies": {
     "@skillsync/shared": "*",
-    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "csurf": "^1.11.0",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
     "express-rate-limit": "^8.2.1",

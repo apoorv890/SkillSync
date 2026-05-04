@@ -7,7 +7,7 @@ AI-assisted recruitment: candidates apply with resumes and ATS scoring; admins m
 | Path | Role |
 |------|------|
 | `client/` | React 18 + Vite SPA (dev **3000**) |
-| `gateway/` | API gateway: CORS, rate limit, CSRF cookie + `GET /api/csrf-token`, proxies to services (dev **5000**) |
+| `gateway/` | API gateway: CORS, rate limit, proxies to services (dev **5000**) |
 | `shared/` | `@skillsync/shared` — logger, DB helper, JWT helpers, sanitizers, `requireInternal`, HTTP helpers |
 | `services/auth` | Users, JWT, blacklist, `/api/auth/*`, `/api/users/*` (**5001**) |
 | `services/jobs` | Jobs CRUD + internal reads (**5002**) |
@@ -49,7 +49,7 @@ npm run dev:docker
 
 # Or detached
 docker compose up --build -d
-npm run smoke   # hits gateway /health and /api/csrf-token
+npm run smoke   # hits gateway /health
 npm run docker:down
 ```
 
@@ -59,7 +59,6 @@ Compose brings up **MongoDB** and all services with internal DNS (`http://auth:5
 
 - **Browser → gateway only** on port 5000; gateway forwards to services.
 - **User JWT**: `Authorization: Bearer …` on protected routes; services verify with shared `JWT_SECRET`.
-- **CSRF**: `GET /api/csrf-token` on the gateway (sets cookie); send `X-CSRF-Token` + `credentials: 'include'` on mutating requests to services that enforce `csurf`.
 - **Service → service**: `X-Internal-Token: <INTERNAL_SERVICE_TOKEN>` (see `@skillsync/shared` `requireInternal`).
 
 ## License / product
