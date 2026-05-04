@@ -90,60 +90,58 @@ const proxyError =
     }
   };
 
-const authProxy = createProxyMiddleware({
-  target: AUTH_UPSTREAM,
+/** http-proxy-middleware v3: Express strips the mount path from req.url before proxying.
+ * Upstream services still expect full paths like /api/auth/register — rewrite them back. */
+const proxyOpts = {
   changeOrigin: true,
   proxyTimeout: 120000,
   timeout: 120000,
-  logLevel: 'warn',
-  onError: proxyError('auth service')
-});
+  logLevel: 'warn'
+};
 
-const jobsProxy = createProxyMiddleware({
-  target: JOBS_UPSTREAM,
-  changeOrigin: true,
-  proxyTimeout: 120000,
-  timeout: 120000,
-  logLevel: 'warn',
-  onError: proxyError('jobs service')
-});
+function serviceProxy(target, upstreamApiPrefix, label) {
+  return createProxyMiddleware({
+    ...proxyOpts,
+    target,
+    pathRewrite: (path) => upstreamApiPrefix + (path || ''),
+    onError: proxyError(label)
+  });
+}
 
-const applicationsProxy = createProxyMiddleware({
-  target: APPLICATIONS_UPSTREAM,
-  changeOrigin: true,
-  proxyTimeout: 120000,
-  timeout: 120000,
-  logLevel: 'warn',
-  onError: proxyError('applications service')
-});
-
-const searchProxy = createProxyMiddleware({
-  target: SEARCH_UPSTREAM,
-  changeOrigin: true,
-  proxyTimeout: 120000,
-  timeout: 120000,
-  logLevel: 'warn',
-  onError: proxyError('search service')
-});
-
-const dashboardProxy = createProxyMiddleware({
-  target: DASHBOARD_UPSTREAM,
-  changeOrigin: true,
-  proxyTimeout: 120000,
-  timeout: 120000,
-  logLevel: 'warn',
-  onError: proxyError('dashboard service')
-});
+const authProxy = serviceProxy(AUTH_UPSTREAM, '/api/auth', 'auth service');
+const usersProxy = serviceProxy(AUTH_UPSTREAM, '/api/users', 'auth service');
+const jobsProxy = serviceProxy(JOBS_UPSTREAM, '/api/jobs', 'jobs service');
+const applicationsProxy = serviceProxy(
+  APPLICATIONS_UPSTREAM,
+  '/api/applications',
+  'applications service'
+);
+const candidatesProxy = serviceProxy(
+  APPLICATIONS_UPSTREAM,
+  '/api/candidates',
+  'applications service'
+);
+const searchProxy = serviceProxy(SEARCH_UPSTREAM, '/api/search', 'search service');
+const dashboardProxy = serviceProxy(
+  DASHBOARD_UPSTREAM,
+  '/api/dashboard',
+  'dashboard service'
+);
+const analyticsProxy = serviceProxy(
+  DASHBOARD_UPSTREAM,
+  '/api/analytics',
+  'dashboard service'
+);
 
 // Do not mount body parsers before proxy — preserves multipart and JSON streams
 app.use('/api/applications', applicationsProxy);
-app.use('/api/candidates', applicationsProxy);
+app.use('/api/candidates', candidatesProxy);
 app.use('/api/search', searchProxy);
 app.use('/api/dashboard', dashboardProxy);
-app.use('/api/analytics', dashboardProxy);
+app.use('/api/analytics', analyticsProxy);
 app.use('/api/jobs', jobsProxy);
 app.use('/api/auth', authProxy);
-app.use('/api/users', authProxy);
+app.use('/api/users', usersProxy);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
