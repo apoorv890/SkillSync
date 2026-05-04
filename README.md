@@ -9,7 +9,7 @@ AI-assisted recruitment: candidates apply with resumes and ATS scoring; admins m
 | `client/` | React 18 + Vite SPA (dev **3000**) |
 | `gateway/` | API gateway: CORS, rate limit, proxies to services (dev **5000**) |
 | `shared/` | `@skillsync/shared` — logger, DB helper, JWT helpers, sanitizers, `requireInternal`, HTTP helpers |
-| `services/auth` | Users, JWT, blacklist, `/api/auth/*`, `/api/users/*` (**5001**) |
+| `services/auth` | Google sign-in, JWT, blacklist, `/api/auth/*`, `/api/users/*` (**5001**) |
 | `services/jobs` | Jobs CRUD + internal reads (**5002**) |
 | `services/applications` | Applications, candidates, S3 resumes, ATS triggers (**5003**) |
 | `services/resume-analysis` | PDF/DOCX + Groq; callbacks to applications internal (**5004**) |
@@ -28,7 +28,7 @@ Deep dive: **[SKILLSYNC_OVERVIEW.md](./SKILLSYNC_OVERVIEW.md)**.
 ## Configuration
 
 1. Copy **`.env.example`** → **`.env`** at the **repository root** (same level as `package.json`).
-2. Set at least `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`, `MONGODB_URI`, and the keys your services need (`GROQ_API_KEY`, AWS, etc.). See `.env.example` for the full list.
+2. Set at least `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`, `MONGODB_URI`, **`GOOGLE_CLIENT_ID`** and **`VITE_GOOGLE_CLIENT_ID`** (same Web client id), plus keys your services need (`GROQ_API_KEY`, AWS, etc.). See `.env.example` for the full list.
 
 ## Local development
 

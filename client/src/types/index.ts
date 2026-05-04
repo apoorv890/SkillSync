@@ -141,7 +141,7 @@ export interface AuthContextType {
   user: User | null;
   setIsAuthenticated: (value: boolean) => void;
   setUser: (user: User | null) => void;
-  logout: () => void;
+  logout: () => void | Promise<void>;
 }
 
 export interface DashboardContextType {

@@ -35,7 +35,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   });
   
   // Memoized logout function to prevent re-renders
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        /* best-effort */
+      }
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setIsAuthenticated(false);

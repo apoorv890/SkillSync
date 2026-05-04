@@ -15,7 +15,7 @@ Convert the backend into 7 services + 1 API gateway, deployed independently:
 | Service | Port | Owns |
 |---|---|---|
 | `api-gateway` | 5000 | Rate limiting, CORS, proxying. Single ingress for the SPA. |
-| `auth-service` | 5001 | `users`, `tokenblacklists`, `/auth/*`, `/users/*`, profile photos, OTP. |
+| `auth-service` | 5001 | `users`, `tokenblacklists`, `/auth/*` (Google + JWT), `/users/*`, profile photos. |
 | `jobs-service` | 5002 | `jobs`, `/jobs/*`. |
 | `applications-service` | 5003 | `applications`, `candidates`, `/applications/*`, `/candidates/*`. |
 | `resume-analysis-service` | 5004 | PDF/DOCX parsing + Groq ATS scoring (no DB ownership; stateless worker). |
@@ -53,7 +53,7 @@ Convert the backend into 7 services + 1 API gateway, deployed independently:
 - **Message broker (RabbitMQ / Kafka) for the ATS pipeline.** Rejected for now: adds new infrastructure beyond the scope of "convert to microservices, change nothing else." Re-evaluate when scoring volume justifies it.
 - **DB-per-service.** Rejected for now: doubles the surface area of this refactor. The logical bounded contexts established here make a future split mechanical.
 - **Polyrepo.** Rejected: a single team is maintaining all services; monorepo keeps refactors atomic.
-- **Separate `notifications-service`.** Rejected: email is currently stubbed (OTP is `console.log`'d). Keeps inside `auth-service` until real email is wired up.
+- **Separate `notifications-service`.** Rejected for this personal build; add later if you need outbound email.
 
 ## References
 
