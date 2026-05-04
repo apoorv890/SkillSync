@@ -12,6 +12,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    // Avoid stale pre-bundle / "Outdated Optimize Dep" 504 after dep or envDir changes
+    include: ['@react-oauth/google'],
+  },
   server: {
     port: 3000,
     proxy: {

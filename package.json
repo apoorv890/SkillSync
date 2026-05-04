@@ -12,6 +12,7 @@
   "scripts": {
     "install:all": "npm install",
     "dev:client": "npm run dev --workspace=SkillSync-client",
+    "dev:client:force": "npm run dev:force --workspace=SkillSync-client",
     "dev:gateway": "npm run dev --workspace=@skillsync/gateway",
     "dev:auth": "npm run dev --workspace=@skillsync/auth-service",
     "dev:jobs": "npm run dev --workspace=@skillsync/jobs-service",
