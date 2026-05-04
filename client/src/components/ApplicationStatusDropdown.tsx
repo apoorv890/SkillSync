@@ -13,7 +13,6 @@ type ApplicationStatus = "Under Review" | "Shortlisted" | "Rejected" | "Hired";
 interface ApplicationStatusDropdownProps {
   currentStatus: ApplicationStatus;
   onStatusChange: (status: ApplicationStatus) => void;
-  applicationId: string;
 }
 
 const statusOptions: ApplicationStatus[] = [
@@ -26,7 +25,6 @@ const statusOptions: ApplicationStatus[] = [
 export function ApplicationStatusDropdown({
   currentStatus,
   onStatusChange,
-  applicationId,
 }: ApplicationStatusDropdownProps) {
   const [status, setStatus] = React.useState<ApplicationStatus>(currentStatus);
   const [isOpen, setIsOpen] = React.useState(false);

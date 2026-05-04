@@ -21,8 +21,6 @@ const Sidebar = ({ darkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const isAdmin = user?.role === 'admin';
-
   const handleLogout = () => {
     logout();
     navigate('/auth');

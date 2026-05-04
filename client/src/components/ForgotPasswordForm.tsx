@@ -86,8 +86,8 @@ export function ForgotPasswordForm({ className, ...props }) {
       setEmail(data.email);
       toast.success('OTP sent to your email!');
       setCurrentStep('otp');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to send OTP');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send OTP');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,8 +111,8 @@ export function ForgotPasswordForm({ className, ...props }) {
 
       toast.success('OTP verified successfully!');
       setCurrentStep('reset');
-    } catch (err: any) {
-      toast.error(err.message || 'Invalid OTP');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Invalid OTP');
     } finally {
       setIsSubmitting(false);
     }
@@ -140,8 +140,8 @@ export function ForgotPasswordForm({ className, ...props }) {
 
       toast.success('Password reset successfully!');
       navigate('/login', { replace: true });
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to reset password');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reset password');
     } finally {
       setIsSubmitting(false);
     }

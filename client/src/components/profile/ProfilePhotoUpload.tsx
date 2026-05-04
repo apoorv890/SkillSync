@@ -39,15 +39,6 @@ export default function ProfilePhotoUpload({
     setPhotoUrl(currentPhotoUrl || null);
   }, [currentPhotoUrl]);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
       return 'Please upload a valid image file (JPEG, PNG, or WebP)';

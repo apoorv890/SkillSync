@@ -4,9 +4,6 @@ import {
   Briefcase,
   LayoutDashboard,
   Plus,
-  Settings,
-  HelpCircle,
-  Search,
 } from "lucide-react"
 
 import {
@@ -20,10 +17,8 @@ import {
 } from "../ui/sidebar"
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
-import { useAuth } from "../../hooks/useAuth"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth()
   const location = useLocation()
 
   const navMain = [

@@ -71,7 +71,7 @@ const ApplyModal = ({ jobId, jobTitle, onClose, onSuccess }) => {
         const data = await response.json();
         setError(data.message || 'Failed to submit application');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred while submitting your application');
     } finally {
       setUploading(false);

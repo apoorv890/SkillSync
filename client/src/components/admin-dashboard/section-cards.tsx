@@ -1,8 +1,7 @@
-import { TrendingUp, TrendingDown, Briefcase, Users, FileText } from "lucide-react"
+import { TrendingUp, Briefcase, Users, FileText } from "lucide-react"
 import { Badge } from "../ui/badge"
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,

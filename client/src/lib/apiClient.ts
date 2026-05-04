@@ -6,10 +6,10 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
 // Global cache for responses
-const responseCache = new Map<string, { data: any; timestamp: number }>();
+const responseCache = new Map<string, { data: unknown; timestamp: number }>();
 
 // Global pending requests to prevent duplicates
-const pendingRequests = new Map<string, Promise<any>>();
+const pendingRequests = new Map<string, Promise<unknown>>();
 
 // Default cache duration: 5 minutes
 const DEFAULT_CACHE_TIME = 5 * 60 * 1000;
@@ -154,10 +154,14 @@ async function apiRequest<T>(
       pendingRequests.delete(cacheKey);
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({
+        const errBody = (await response.json().catch(() => ({
           error: `HTTP ${response.status}: ${response.statusText}`,
-        }));
-        throw new Error(error.error || error.message || 'Request failed');
+        }))) as Record<string, unknown>;
+        const msg =
+          (typeof errBody.error === 'string' && errBody.error) ||
+          (typeof errBody.message === 'string' && errBody.message) ||
+          'Request failed';
+        throw new Error(msg);
       }
 
       const data = await response.json();
@@ -193,7 +197,7 @@ export const apiClient = {
     apiRequest<T>(endpoint, { ...options, method: 'GET' }),
 
   // POST request
-  post: <T>(endpoint: string, data?: any, options?: RequestOptions) =>
+  post: <T>(endpoint: string, data?: unknown, options?: RequestOptions) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -201,7 +205,7 @@ export const apiClient = {
     }),
 
   // PUT request
-  put: <T>(endpoint: string, data?: any, options?: RequestOptions) =>
+  put: <T>(endpoint: string, data?: unknown, options?: RequestOptions) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'PUT',
@@ -209,7 +213,7 @@ export const apiClient = {
     }),
 
   // PATCH request
-  patch: <T>(endpoint: string, data?: any, options?: RequestOptions) =>
+  patch: <T>(endpoint: string, data?: unknown, options?: RequestOptions) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'PATCH',

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, List } from 'lucide-react';
+import { List } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -78,12 +78,12 @@ const EditJobModal = ({ job, open, onClose, onSuccess }) => {
     if (!bulletPoints[field]) {
       // Convert to bullet points
       const lines = currentValue.split('\n').filter(line => line.trim());
-      const bulletText = lines.map(line => `• ${line.replace(/^[•\-\*]\s*/, '')}`).join('\n');
+      const bulletText = lines.map(line => `• ${line.replace(/^[•\-*]\s*/, '')}`).join('\n');
       setValue(field, bulletText);
     } else {
       // Remove bullet points
       const lines = currentValue.split('\n');
-      const plainText = lines.map(line => line.replace(/^[•\-\*]\s*/, '')).join('\n');
+      const plainText = lines.map(line => line.replace(/^[•\-*]\s*/, '')).join('\n');
       setValue(field, plainText);
     }
   };
@@ -110,7 +110,7 @@ const EditJobModal = ({ job, open, onClose, onSuccess }) => {
         const error = await response.json();
         toast.error(error.message || 'Failed to update job');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update job. Please try again.');
     } finally {
       setIsSubmitting(false);
