@@ -123,11 +123,11 @@ class ResumeParserService {
     return (
       text
         // Remove excessive whitespace
-        .replace(/\\s+/g, ' ')
+        .replace(/\s+/g, ' ')
         // Remove special characters that might confuse AI
-        .replace(/[^\\w\\s.,;:()@#$%&*+\\-=[\\]{}|<>?/\\\\'\\\"]/g, '')
+        .replace(/[^\w\s.,;:()@#$%&*+\-=[\]{}|<>?/\\'"]/g, '')
         // Normalize line breaks
-        .replace(/\\n+/g, '\\n')
+        .replace(/\n+/g, '\n')
         // Trim
         .trim()
     );
