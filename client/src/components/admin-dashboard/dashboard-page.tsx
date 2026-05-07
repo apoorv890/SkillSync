@@ -33,7 +33,7 @@ export function DashboardPage() {
     totalJobs: statsData?.totalJobs || 0,
     activeJobs: statsData?.activeJobs || 0,
     totalCandidates: statsData?.totalCandidates || 0,
-    totalApplications: statsData?.totalCandidates || 0,
+    totalApplications: statsData?.totalApplications || 0,
   }
 
   useEffect(() => {
