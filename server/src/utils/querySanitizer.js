@@ -42,7 +42,7 @@ export function sanitizeDepartment(department) {
     return null;
   }
 
-  const sanitized = department.trim().replace(/[^a-zA-Z0-9\s\\-&,]/g, '');
+  const sanitized = department.trim().replace(/[^a-zA-Z0-9\s\-&,]/g, '');
 
   if (sanitized.length > 100) {
     return null;
@@ -56,7 +56,7 @@ export function sanitizeLocation(location) {
     return null;
   }
 
-  const sanitized = location.trim().replace(/[^a-zA-Z0-9\\s\\-,()]/g, '');
+  const sanitized = location.trim().replace(/[^a-zA-Z0-9\s\-,()]/g, '');
 
   if (sanitized.length > 100) {
     return null;
