@@ -104,7 +104,9 @@ export function sanitizeObjectId(id) {
 
   const str = typeof id === 'string' ? id : String(id);
 
-  if (!/^[a-f\\d]{24}$/i.test(str.trim())) {
+  // Note: do NOT use `/\\d/` here; in regex literals that matches a literal "\d".
+  // Validate as a real Mongo ObjectId-like hex string.
+  if (!/^[a-f\d]{24}$/i.test(str.trim())) {
     return null;
   }
 
