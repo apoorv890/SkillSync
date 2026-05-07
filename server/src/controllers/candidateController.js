@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 import fs from 'fs';
 import pdfParse from 'pdf-parse';
-import { generateGeminiText } from '@skillsync/shared/gemini';
-import * as jobsClient from '../services/jobsClient.js';
+import { generateGeminiText } from '../utils/gemini.js';
+import Job from '../models/Job.js';
 import Candidate from '../models/Candidate.js';
 
 /**
@@ -149,7 +149,7 @@ Return ONLY a valid JSON object with the following structure:
         return res.status(400).json({ error: 'Invalid job ID' });
       }
 
-      const job = await jobsClient.getJobById(jobId);
+      const job = await Job.findById(jobId).lean();
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
       }

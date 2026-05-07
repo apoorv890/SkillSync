@@ -1,5 +1,5 @@
-import * as jobsClient from '../services/jobsClient.js';
-import * as applicationsClient from '../services/applicationsClient.js';
+import * as JobService from '../services/jobServiceInternal.js';
+import * as ApplicationService from '../services/applicationServiceInternal.js';
 
 function pickJobSummary(job) {
   if (!job) {
@@ -27,7 +27,7 @@ function rawJobId(jobRef) {
 
 async function attachJobsToApplications(apps) {
   const jobIds = [...new Set(apps.map((a) => rawJobId(a.jobId)).filter(Boolean))];
-  const jobs = await jobsClient.getJobsByIds(jobIds);
+  const jobs = await JobService.getJobsByIds(jobIds);
   const map = new Map(jobs.map((j) => [String(j._id), j]));
   return apps.map((a) => ({
     ...a,
@@ -37,7 +37,7 @@ async function attachJobsToApplications(apps) {
 
 async function attachJobsToCandidates(rows) {
   const jobIds = [...new Set(rows.map((c) => rawJobId(c.jobId)).filter(Boolean))];
-  const jobs = await jobsClient.getJobsByIds(jobIds);
+  const jobs = await JobService.getJobsByIds(jobIds);
   const map = new Map(jobs.map((j) => [String(j._id), j]));
   return rows.map((c) => ({
     ...c,
@@ -55,7 +55,7 @@ export async function getUserStats(req, res) {
     }
 
     const userId = req.userId || req.user._id;
-    const appStats = await applicationsClient.getUserDashboardApplicationStats(
+    const appStats = await ApplicationService.getUserDashboardApplicationStats(
       String(userId)
     );
 
@@ -77,9 +77,9 @@ export async function getDashboardStats(req, res) {
 
     if (userRole === 'admin') {
       const { totalJobs, activeJobs, jobsByStatus, recentJobs } =
-        await jobsClient.getAdminDashboardJobStats();
+        await JobService.getAdminDashboardJobStats();
       const { totalCandidates, interviewsScheduled } =
-        await applicationsClient.getAdminCandidateCounts();
+        await ApplicationService.getAdminCandidateCounts();
 
       return res.json({
         totalJobs,
@@ -93,7 +93,7 @@ export async function getDashboardStats(req, res) {
 
     const userId = req.userId || req.user._id;
 
-    const appStats = await applicationsClient.getUserDashboardApplicationStats(
+    const appStats = await ApplicationService.getUserDashboardApplicationStats(
       String(userId)
     );
 
@@ -114,10 +114,10 @@ export async function getDashboardStats(req, res) {
 export async function getAdminDashboard(req, res) {
   try {
     const { totalJobs, activeJobs, jobsByStatus, recentJobs } =
-      await jobsClient.getAdminDashboardJobStats();
+      await JobService.getAdminDashboardJobStats();
 
     const { totalCandidates, interviewsScheduled } =
-      await applicationsClient.getAdminCandidateCounts();
+      await ApplicationService.getAdminCandidateCounts();
 
     res.json({
       totalJobs,
@@ -135,7 +135,7 @@ export async function getAdminDashboard(req, res) {
 
 export async function getUserDashboard(req, res) {
   try {
-    const payload = await applicationsClient.getLegacyUserDashboardCandidateMock();
+    const payload = await ApplicationService.getLegacyUserDashboardCandidateMock();
 
     const recentApplications = await attachJobsToCandidates(
       payload.recentApplications
