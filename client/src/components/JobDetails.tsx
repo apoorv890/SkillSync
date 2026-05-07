@@ -95,7 +95,12 @@ const JobDetails = () => {
         triggerDashboardRefresh();
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Failed to withdraw application');
+        toast.error(
+          error?.message ||
+            error?.error ||
+            error?.errors?.[0]?.message ||
+            'Failed to withdraw application'
+        );
       }
     } catch {
       toast.error('Failed to withdraw application. Please try again.');
