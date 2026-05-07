@@ -1,5 +1,5 @@
 import Job from '../models/Job.js';
-import Candidate from '../models/Candidate.js';
+import Application from '../models/Application.js';
 
 export async function getJobsByIds(ids) {
   if (!ids?.length) {
@@ -19,10 +19,10 @@ export async function getAdminDashboardJobStats() {
   const recentJobs = await Job.aggregate([
     {
       $lookup: {
-        from: 'candidates',
+        from: Application.collection.name,
         localField: '_id',
         foreignField: 'jobId',
-        as: 'candidates'
+        as: 'applications'
       }
     },
     {
@@ -31,7 +31,7 @@ export async function getAdminDashboardJobStats() {
         location: 1,
         status: 1,
         createdAt: 1,
-        candidateCount: { $size: '$candidates' }
+        candidateCount: { $size: '$applications' }
       }
     },
     { $sort: { createdAt: -1 } },
@@ -96,7 +96,7 @@ export async function getCandidateCountByJobIds(jobIds) {
   if (!jobIds?.length) {
     return new Map();
   }
-  const agg = await Candidate.aggregate([
+  const agg = await Application.aggregate([
     { $match: { jobId: { $in: jobIds } } },
     { $group: { _id: '$jobId', count: { $sum: 1 } } }
   ]);

@@ -34,7 +34,7 @@ const AdminDashboard = () => {
             totalJobs: data.totalJobs || 0,
             activeJobs: data.activeJobs || 0,
             totalCandidates: data.totalCandidates || 0,
-            totalApplications: data.totalCandidates || 0,
+            totalApplications: data.totalApplications || 0,
             jobsByStatus: data.jobsByStatus || {
               active: 0,
               draft: 0,

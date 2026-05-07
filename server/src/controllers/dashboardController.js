@@ -78,13 +78,14 @@ export async function getDashboardStats(req, res) {
     if (userRole === 'admin') {
       const { totalJobs, activeJobs, jobsByStatus, recentJobs } =
         await JobService.getAdminDashboardJobStats();
-      const { totalCandidates, interviewsScheduled } =
+      const { totalCandidates, totalApplications, interviewsScheduled } =
         await ApplicationService.getAdminCandidateCounts();
 
       return res.json({
         totalJobs,
         activeJobs,
         totalCandidates,
+        totalApplications,
         interviewsScheduled,
         jobsByStatus,
         recentJobs
@@ -116,13 +117,14 @@ export async function getAdminDashboard(req, res) {
     const { totalJobs, activeJobs, jobsByStatus, recentJobs } =
       await JobService.getAdminDashboardJobStats();
 
-    const { totalCandidates, interviewsScheduled } =
+    const { totalCandidates, totalApplications, interviewsScheduled } =
       await ApplicationService.getAdminCandidateCounts();
 
     res.json({
       totalJobs,
       activeJobs,
       totalCandidates,
+      totalApplications,
       interviewsScheduled,
       jobsByStatus,
       recentJobs

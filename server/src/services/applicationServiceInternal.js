@@ -151,8 +151,11 @@ export async function getUserDashboardApplicationStats(userId) {
 }
 
 export async function getAdminCandidateCounts() {
+  const totalApplications = await Application.countDocuments();
+  const uniqueApplicants = await Application.distinct('userId');
   return {
-    totalCandidates: await Candidate.countDocuments(),
+    totalCandidates: uniqueApplicants.length,
+    totalApplications,
     interviewsScheduled: await Candidate.countDocuments({ interviewScheduled: true })
   };
 }
