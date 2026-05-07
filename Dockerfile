@@ -1,4 +1,3 @@
-# Monorepo image: build once, run one workspace via SERVICE_SUBPATH (e.g. gateway, services/auth).
 FROM node:22-bookworm-slim AS runner
 
 RUN apt-get update \
@@ -8,17 +7,11 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-COPY shared ./shared
-COPY gateway ./gateway
-COPY client ./client
-COPY services ./services
+COPY server ./server
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm --prefix server install --omit=dev
 
-ARG SERVICE_SUBPATH=gateway
-ENV SERVICE_SUBPATH=${SERVICE_SUBPATH}
-
-WORKDIR /app/${SERVICE_SUBPATH}
+WORKDIR /app/server
 
 EXPOSE 5000
 CMD ["node", "src/server.js"]

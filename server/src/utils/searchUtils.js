@@ -71,10 +71,6 @@ export const isLikelyJobTitle = (query) => {
   return false;
 };
 
-export const escapeRegExp = (string) => {
-  return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-};
-
 export const createExactMatchRegex = (query) => {
   return new RegExp(`^${escapeRegExp(query)}$`, 'i');
 };
