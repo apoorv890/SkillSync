@@ -16,191 +16,20 @@ services:
       retries: 5
       start_period: 20s
 
-  auth:
+  server:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        SERVICE_SUBPATH: services/auth
     restart: unless-stopped
     env_file: .env
     environment:
-      AUTH_SERVICE_PORT: "5001"
+      PORT: "5000"
       MONGODB_URI: mongodb://mongo:27017/SkillSync
-    ports:
-      - "5001:5001"
-    depends_on:
-      mongo:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5001/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
-
-  jobs:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_SUBPATH: services/jobs
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      JOBS_SERVICE_PORT: "5002"
-      MONGODB_URI: mongodb://mongo:27017/SkillSync
-      AUTH_SERVICE_URL: http://auth:5001
-    ports:
-      - "5002:5002"
-    depends_on:
-      mongo:
-        condition: service_healthy
-      auth:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5002/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
-
-  resume-analysis:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_SUBPATH: services/resume-analysis
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      RESUME_ANALYSIS_SERVICE_PORT: "5004"
-      APPLICATIONS_SERVICE_URL: http://applications:5003
-      AUTH_SERVICE_URL: http://auth:5001
-      JOBS_SERVICE_URL: http://jobs:5002
-    ports:
-      - "5004:5004"
-    depends_on:
-      auth:
-        condition: service_started
-      jobs:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5004/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
-
-  applications:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_SUBPATH: services/applications
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      APPLICATIONS_SERVICE_PORT: "5003"
-      MONGODB_URI: mongodb://mongo:27017/SkillSync
-      AUTH_SERVICE_URL: http://auth:5001
-      JOBS_SERVICE_URL: http://jobs:5002
-      RESUME_ANALYSIS_SERVICE_URL: http://resume-analysis:5004
-    ports:
-      - "5003:5003"
-    depends_on:
-      mongo:
-        condition: service_healthy
-      auth:
-        condition: service_started
-      jobs:
-        condition: service_started
-      resume-analysis:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5003/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-
-  search:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_SUBPATH: services/search
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      SEARCH_SERVICE_PORT: "5005"
-      MONGODB_URI: mongodb://mongo:27017/SkillSync
-    ports:
-      - "5005:5005"
-    depends_on:
-      mongo:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5005/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
-
-  dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_SUBPATH: services/dashboard
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      DASHBOARD_SERVICE_PORT: "5006"
-      AUTH_SERVICE_URL: http://auth:5001
-      JOBS_SERVICE_URL: http://jobs:5002
-      APPLICATIONS_SERVICE_URL: http://applications:5003
-    ports:
-      - "5006:5006"
-    depends_on:
-      auth:
-        condition: service_started
-      jobs:
-        condition: service_started
-      applications:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5006/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
-
-  gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_SUBPATH: gateway
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      GATEWAY_PORT: "5000"
-      AUTH_SERVICE_URL: http://auth:5001
-      JOBS_SERVICE_URL: http://jobs:5002
-      APPLICATIONS_SERVICE_URL: http://applications:5003
-      RESUME_ANALYSIS_SERVICE_URL: http://resume-analysis:5004
-      SEARCH_SERVICE_URL: http://search:5005
-      DASHBOARD_SERVICE_URL: http://dashboard:5006
     ports:
       - "5000:5000"
     depends_on:
-      - auth
-      - jobs
-      - applications
-      - resume-analysis
-      - search
-      - dashboard
+      mongo:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/health"]
       interval: 15s

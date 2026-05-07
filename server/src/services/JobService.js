@@ -1,9 +1,13 @@
 import Job from '../models/Job.js';
-import logger from '@skillsync/shared/logger';
+import logger from '../utils/logger.js';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
-import { ApiError } from '@skillsync/shared/http';
-import { HTTP_STATUS, JOB_STATUS } from '@skillsync/shared/constants';
-import { sanitizeJobStatus, sanitizeDepartment, sanitizeLocation } from '@skillsync/shared/security';
+import { ApiError, HTTP_STATUS } from '../utils/http.js';
+import { JOB_STATUS } from '../utils/constants.js';
+import {
+  sanitizeJobStatus,
+  sanitizeDepartment,
+  sanitizeLocation
+} from '../utils/querySanitizer.js';
 
 class JobService {
   async getAllJobs(filters = {}, req = null) {
@@ -28,7 +32,9 @@ class JobService {
       return jobs;
     } catch (error) {
       const prefix = req?.logPrefix || '';
-      logger.error(`${prefix}Error fetching jobs: ${error.message}`, { error: error.stack });
+      logger.error(`${prefix}Error fetching jobs: ${error.message}`, {
+        error: error.stack
+      });
       throw error;
     }
   }
@@ -47,7 +53,10 @@ class JobService {
       return job;
     } catch (error) {
       const prefix = req?.logPrefix || '';
-      logger.error(`${prefix}Error fetching job: ${error.message}`, { jobId, error: error.stack });
+      logger.error(`${prefix}Error fetching job: ${error.message}`, {
+        jobId,
+        error: error.stack
+      });
       throw error;
     }
   }
@@ -101,7 +110,10 @@ class JobService {
     logger.info('Updating job', { jobId });
 
     try {
-      const job = await Job.findByIdAndUpdate(jobId, updateData, { new: true, runValidators: true });
+      const job = await Job.findByIdAndUpdate(jobId, updateData, {
+        new: true,
+        runValidators: true
+      });
 
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
@@ -110,7 +122,10 @@ class JobService {
       logger.info('Job updated successfully', { jobId });
       return job;
     } catch (error) {
-      logger.error(`Error updating job: ${error.message}`, { jobId, error: error.stack });
+      logger.error(`Error updating job: ${error.message}`, {
+        jobId,
+        error: error.stack
+      });
       throw error;
     }
   }
@@ -127,7 +142,10 @@ class JobService {
 
       logger.info('Job deleted successfully', { jobId });
     } catch (error) {
-      logger.error(`Error deleting job: ${error.message}`, { jobId, error: error.stack });
+      logger.error(`Error deleting job: ${error.message}`, {
+        jobId,
+        error: error.stack
+      });
       throw error;
     }
   }
@@ -143,10 +161,14 @@ class JobService {
       logger.info(`Found ${jobs.length} matching jobs`, { searchTerm });
       return jobs;
     } catch (error) {
-      logger.error(`Error searching jobs: ${error.message}`, { searchTerm, error: error.stack });
+      logger.error(`Error searching jobs: ${error.message}`, {
+        searchTerm,
+        error: error.stack
+      });
       throw error;
     }
   }
 }
 
 export default new JobService();
+
