@@ -17,7 +17,7 @@ Frontend application for SkillSync - an AI-powered recruitment platform built wi
 
 - Node.js v18 or higher
 - npm or yarn package manager
-- Running backend server (see server/README.md)
+- Running backend services (see repo root `package.json` scripts and `.env.example`)
 
 ## 🔧 Installation
 

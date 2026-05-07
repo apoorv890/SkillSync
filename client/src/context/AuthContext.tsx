@@ -14,28 +14,41 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) return null;
+    try {
+      return JSON.parse(storedUser) as User;
+    } catch {
+      return null;
+    }
+  });
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    // Initialize from localStorage to avoid flash
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    return !!(token && storedUser);
-  });
-  
-  const [user, setUser] = useState<User | null>(() => {
-    // Initialize from localStorage to avoid flash
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        return JSON.parse(storedUser) as User;
-      } catch {
-        return null;
-      }
+    if (!token || !storedUser) return false;
+    try {
+      JSON.parse(storedUser) as User;
+      return true;
+    } catch {
+      return false;
     }
-    return null;
   });
   
   // Memoized logout function to prevent re-renders
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        /* best-effort */
+      }
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setIsAuthenticated(false);

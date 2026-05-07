@@ -21,7 +21,7 @@ export function DashboardPage() {
   })
 
   // Use API hook with automatic deduplication and caching
-  const { data: statsData, loading } = useApi<any>(
+  const { data: statsData, loading } = useApi<DashboardStats>(
     '/dashboard/stats',
     {
       refetchTrigger: refreshTrigger,
@@ -33,7 +33,7 @@ export function DashboardPage() {
     totalJobs: statsData?.totalJobs || 0,
     activeJobs: statsData?.activeJobs || 0,
     totalCandidates: statsData?.totalCandidates || 0,
-    totalApplications: statsData?.totalCandidates || 0,
+    totalApplications: statsData?.totalApplications || 0,
   }
 
   useEffect(() => {

@@ -1,12 +1,7 @@
 import { useState, useMemo } from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { Card, CardContent } from "../ui/card"
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "../ui/chart"
+import { ChartTooltip } from "../ui/chart"
 import { useDashboardRefresh } from "../../contexts/DashboardContext"
 import { useApi } from "../../hooks/useApi"
 import { cn } from "../../lib/utils"
@@ -19,12 +14,8 @@ interface AnalyticsData {
 
 type TimeRange = "90d" | "30d" | "7d"
 
-const chartConfig = {
-  jobsCreated: {
-    label: "Jobs Created",
-    color: "hsl(var(--chart-1))",
-  },
-} satisfies ChartConfig
+type AnalyticsApiRow = { date: string; jobsCreated?: number }
+type AnalyticsApiResponse = { data?: AnalyticsApiRow[] } | AnalyticsApiRow[]
 
 // Get current date in user's timezone
 const getCurrentDate = () => {
@@ -55,7 +46,7 @@ export function AnalyticsChart() {
 
   // Use API hook with automatic deduplication and caching
   // Update API call when timeRange changes
-  const { data: analyticsResponse, loading } = useApi<any>(
+  const { data: analyticsResponse, loading } = useApi<AnalyticsApiResponse>(
     `/analytics?range=${timeRange}`,
     {
       refetchTrigger: refreshTrigger,
@@ -73,7 +64,7 @@ export function AnalyticsChart() {
           ? analyticsResponse.data 
           : [])
     
-    dataArray.forEach((item: any) => {
+    dataArray.forEach((item: AnalyticsApiRow) => {
       if (item.date) {
         dataMap[item.date] = item.jobsCreated || 0
       }

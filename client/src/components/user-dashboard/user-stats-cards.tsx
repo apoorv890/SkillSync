@@ -2,7 +2,6 @@ import { FileText, Clock, XCircle, Calendar } from "lucide-react"
 import { Badge } from "../ui/badge"
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,

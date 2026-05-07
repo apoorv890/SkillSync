@@ -1,9 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
-import dotenv from 'dotenv';
 
-dotenv.config();
-
-// Create S3 client with AWS SDK v3
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
   credentials: {
@@ -14,3 +10,4 @@ const s3Client = new S3Client({
 
 export const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
 export default s3Client;
+

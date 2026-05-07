@@ -38,10 +38,13 @@ const JobDetails = () => {
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
   // Fetch job details with deduplication
-  const { data: jobResponse, loading } = useApi<any>(`/jobs/${id}`, {
+  const { data: jobResponse, loading } = useApi<Record<string, unknown> | { data?: Record<string, unknown> }>(
+    `/jobs/${id}`,
+    {
     refetchTrigger,
-    cacheTime: 5 * 60 * 1000, // 5 minutes cache
-  });
+      cacheTime: 5 * 60 * 1000, // 5 minutes cache
+    }
+  );
 
   const job = jobResponse?.data || jobResponse;
 
@@ -92,9 +95,14 @@ const JobDetails = () => {
         triggerDashboardRefresh();
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Failed to withdraw application');
+        toast.error(
+          error?.message ||
+            error?.error ||
+            error?.errors?.[0]?.message ||
+            'Failed to withdraw application'
+        );
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to withdraw application. Please try again.');
     } finally {
       setWithdrawing(false);

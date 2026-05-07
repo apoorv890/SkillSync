@@ -1,27 +1,22 @@
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
 import TokenService from '../services/TokenService.js';
+import User from '../models/User.js';
 
 // Middleware to verify JWT token
 export const authenticate = async (req, res, next) => {
   try {
     const token = TokenService.extractTokenFromHeader(req.header('Authorization'));
-    
+
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Check if token is blacklisted
     const isBlacklisted = await TokenService.isTokenBlacklisted(token);
     if (isBlacklisted) {
       return res.status(401).json({ error: 'Token has been revoked' });
     }
 
-    // Verify token
     const decoded = TokenService.verifyToken(token);
-    
-    // Ensure it's an access token (not refresh token)
-    // Allow tokens without type field for backward compatibility
+
     if (decoded.type && decoded.type !== 'access') {
       return res.status(401).json({ error: 'Invalid token type' });
     }
@@ -35,7 +30,7 @@ export const authenticate = async (req, res, next) => {
     req.user = user;
     req.userId = user._id;
     next();
-  } catch (error) {
+  } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -60,3 +55,4 @@ export const requireAuth = (req, res, next) => {
   }
   next();
 };
+

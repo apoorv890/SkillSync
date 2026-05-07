@@ -1,37 +1,44 @@
-import { useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Mail } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import ProfilePhotoUpload from "./ProfilePhotoUpload";
+import { useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Calendar, Mail } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export default function ProfileHeader() {
   const { user, setUser } = useAuth();
 
-  // Fetch and sync profile data on mount
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch('http://localhost:5000/api/users/profile', {
+        const response = await fetch('/api/users/profile', {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (response.ok) {
           const data = await response.json();
           const profileData = data.data;
-          
-          // Update user context with latest profile data including photo
+
           if (user) {
-            const updatedUser = { 
-              ...user, 
+            const updatedUser = {
+              ...user,
               profilePhotoUrl: profileData.profilePhotoUrl,
               fullName: profileData.fullName,
-              email: profileData.email
+              email: profileData.email,
             };
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -43,16 +50,8 @@ export default function ProfileHeader() {
     };
 
     fetchProfile();
-  }, []); // Run once on mount
-
-  const handlePhotoUpdate = (photoUrl: string | null) => {
-    if (user) {
-      const updatedUser = { ...user, profilePhotoUrl: photoUrl };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      window.dispatchEvent(new Event('storage'));
-    }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -61,24 +60,31 @@ export default function ProfileHeader() {
 
   if (!user) return null;
 
-  const currentPhotoUrl = (user as any).profilePhotoUrl || null;
+  const displayName = user.fullName || user.name || 'User';
+  const currentPhotoUrl = user.profilePhotoUrl ?? null;
+  const initials = getInitials(displayName || user.email || 'U');
 
   return (
     <Card>
       <CardContent className="pt-6">
         <div className="flex flex-col items-center gap-6 md:flex-row md:items-start">
-          <ProfilePhotoUpload
-            currentPhotoUrl={currentPhotoUrl}
-            userName={user.fullName || user.name || user.email}
-            onPhotoUpdate={handlePhotoUpdate}
-          />
-          
+          <Avatar className="h-24 w-24 border-2 border-border">
+            {currentPhotoUrl ? (
+              <AvatarImage src={currentPhotoUrl} alt={displayName} className="object-cover" />
+            ) : null}
+            <AvatarFallback className="bg-primary text-2xl text-primary-foreground">{initials}</AvatarFallback>
+          </Avatar>
+
           <div className="flex-1 space-y-3 text-center md:text-left">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
-              <h1 className="text-2xl font-bold">{user.fullName || user.name || 'User'}</h1>
+              <h1 className="text-2xl font-bold">{displayName}</h1>
               <Badge variant="secondary">{user.role === 'admin' ? 'HR Admin' : 'Candidate'}</Badge>
             </div>
-            
+
+            <p className="text-muted-foreground text-sm">
+              Profile photo comes from your Google account when you sign in with Google.
+            </p>
+
             <div className="text-muted-foreground flex flex-col md:flex-row flex-wrap gap-3 text-sm">
               <div className="flex items-center gap-2 justify-center md:justify-start">
                 <Mail className="size-4" />

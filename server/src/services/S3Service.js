@@ -1,39 +1,35 @@
-import { 
-  DeleteObjectCommand, 
-  PutObjectCommand, 
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
   HeadObjectCommand,
   GetObjectCommand
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import s3Client, { BUCKET_NAME } from '../config/aws.js';
-import logger from '../config/logger.js';
-import ApiError from '../utils/ApiError.js';
-import { S3_CONFIG } from '../config/constants.js';
+import logger from '../utils/logger.js';
+import { ApiError } from '../utils/http.js';
+import { S3_CONFIG } from '../utils/constants.js';
 import path from 'path';
 
 class S3Service {
-  /**
-   * Upload resume to S3
-   * @param {Object} file - Multer file object
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Upload result
-   */
   async uploadResume(file, userId) {
     try {
-      // Sanitize filename - remove path traversal and special characters
-      const sanitizedFilename = path.basename(file.originalname)
+      const sanitizedFilename = path
+        .basename(file.originalname)
         .replace(/[^a-zA-Z0-9.-]/g, '_')
-        .substring(0, 100); // Limit filename length
-      
+        .substring(0, 100);
+
       const timestamp = Date.now();
       const ext = path.extname(sanitizedFilename).toLowerCase();
-      
-      // Validate extension is allowed
+
       const allowedExts = ['.pdf', '.doc', '.docx'];
       if (!allowedExts.includes(ext)) {
-        throw new ApiError(400, 'Invalid file extension. Only PDF, DOC, and DOCX files are allowed.');
+        throw new ApiError(
+          400,
+          'Invalid file extension. Only PDF, DOC, and DOCX files are allowed.'
+        );
       }
-      
+
       const s3Key = `${S3_CONFIG.RESUME_FOLDER}/user-${userId}-${timestamp}${ext}`;
 
       const command = new PutObjectCommand({
@@ -47,9 +43,9 @@ class S3Service {
 
       const location = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}`;
 
-      logger.info('Resume uploaded to S3', { 
+      logger.info('Resume uploaded to S3', {
         s3Key,
-        fileName: file.originalname 
+        fileName: file.originalname
       });
 
       return {
@@ -58,16 +54,13 @@ class S3Service {
         bucket: BUCKET_NAME
       };
     } catch (error) {
-      logger.error(`Error uploading resume to S3: ${error.message}`, { error: error.stack });
+      logger.error(`Error uploading resume to S3: ${error.message}`, {
+        error: error.stack
+      });
       throw new ApiError(500, 'Failed to upload resume');
     }
   }
 
-  /**
-   * Delete file from S3
-   * @param {string} s3Key - S3 object key
-   * @returns {Promise<boolean>} Success status
-   */
   async deleteFile(s3Key) {
     try {
       if (!s3Key) {
@@ -81,20 +74,16 @@ class S3Service {
 
       await s3Client.send(command);
 
-      logger.info('🗑️  File deleted from S3', { s3Key });
+      logger.info('File deleted from S3', { s3Key });
       return true;
     } catch (error) {
-      logger.error(`Error deleting file from S3: ${error.message}`, { error: error.stack });
+      logger.error(`Error deleting file from S3: ${error.message}`, {
+        error: error.stack
+      });
       throw error;
     }
   }
 
-  /**
-   * Generate pre-signed URL for file access
-   * @param {string} s3Key - S3 object key
-   * @param {number} expiresIn - URL expiration time in seconds
-   * @returns {Promise<string>} Pre-signed URL
-   */
   async getPreSignedUrl(s3Key, expiresIn = S3_CONFIG.PRESIGNED_URL_EXPIRY) {
     try {
       if (!s3Key) {
@@ -108,22 +97,19 @@ class S3Service {
 
       const url = await getSignedUrl(s3Client, command, { expiresIn });
 
-      logger.info('🔗 Pre-signed URL generated', { 
+      logger.info('Pre-signed URL generated', {
         s3Key,
-        expiresIn: `${expiresIn}s` 
+        expiresIn: `${expiresIn}s`
       });
       return url;
     } catch (error) {
-      logger.error(`Error generating pre-signed URL: ${error.message}`, { error: error.stack });
+      logger.error(`Error generating pre-signed URL: ${error.message}`, {
+        error: error.stack
+      });
       throw new ApiError(500, 'Failed to generate resume URL');
     }
   }
 
-  /**
-   * Check if file exists in S3
-   * @param {string} s3Key - S3 object key
-   * @returns {Promise<boolean>} True if file exists
-   */
   async fileExists(s3Key) {
     try {
       if (!s3Key) {
@@ -148,3 +134,4 @@ class S3Service {
 }
 
 export default new S3Service();
+

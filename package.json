@@ -1,16 +1,22 @@
 {
-  "name": "SkillSync",
+  "name": "skillsync",
   "private": true,
   "version": "1.0.0",
   "description": "SkillSync - AI-powered recruitment platform",
   "scripts": {
-    "install:all": "cd client && npm install && cd ../server && npm install",
-    "dev:client": "cd client && npm run dev",
-    "dev:server": "cd server && npm run dev",
-    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
-    "build:client": "cd client && npm run build",
-    "start:server": "cd server && npm start",
-    "start": "npm run build:client && npm run start:server"
+    "install:all": "npm install && npm --prefix client install && npm --prefix server install",
+    "dev:client": "npm --prefix client run dev",
+    "dev:client:force": "npm --prefix client run dev:force",
+    "dev:server": "npm --prefix server run dev",
+    "dev": "concurrently -n client,server -c blue,green \"npm run dev:client\" \"npm run dev:server\"",
+    "build:client": "npm --prefix client run build",
+    "start:server": "npm --prefix server run start",
+    "start": "npm run build:client && npm run start:server",
+    "dev:docker": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f server",
+    "smoke": "node scripts/smoke.mjs",
+    "seed:five-jobs": "node scripts/seedFiveJobs.mjs"
   },
   "dependencies": {
     "concurrently": "^8.2.2"

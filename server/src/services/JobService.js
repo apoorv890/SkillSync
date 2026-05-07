@@ -1,58 +1,50 @@
 import Job from '../models/Job.js';
-import logger from '../config/logger.js';
+import logger from '../utils/logger.js';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
-import ApiError from '../utils/ApiError.js';
-import { HTTP_STATUS, JOB_STATUS } from '../config/constants.js';
-import { sanitizeJobStatus, sanitizeDepartment, sanitizeLocation } from '../utils/querySanitizer.js';
+import { ApiError, HTTP_STATUS } from '../utils/http.js';
+import { JOB_STATUS } from '../utils/constants.js';
+import {
+  sanitizeJobStatus,
+  sanitizeDepartment,
+  sanitizeLocation
+} from '../utils/querySanitizer.js';
 
 class JobService {
-  /**
-   * Get all jobs
-   * @param {Object} filters - Filter options
-   * @param {Object} req - Express request object (for logging context)
-   * @returns {Promise<Array>} List of jobs
-   */
   async getAllJobs(filters = {}, req = null) {
     logNested(req, 'Fetching all jobs', { filters: JSON.stringify(filters) });
 
     try {
       const query = {};
-      
-      // Sanitize status filter to prevent injection
+
       const sanitizedStatus = sanitizeJobStatus(filters.status);
       if (sanitizedStatus) {
         query.status = sanitizedStatus;
       }
-      
-      // Sanitize department filter to prevent injection
+
       const sanitizedDepartment = sanitizeDepartment(filters.department);
       if (sanitizedDepartment) {
         query.department = sanitizedDepartment;
       }
 
       const jobs = await Job.find(query).sort({ createdAt: -1 });
-      
+
       logCompact(req, `Found ${jobs.length} jobs`, { count: jobs.length });
       return jobs;
     } catch (error) {
       const prefix = req?.logPrefix || '';
-      logger.error(`${prefix}Error fetching jobs: ${error.message}`, { error: error.stack });
+      logger.error(`${prefix}Error fetching jobs: ${error.message}`, {
+        error: error.stack
+      });
       throw error;
     }
   }
 
-  /**
-   * Get job by ID
-   * @param {string} jobId - Job ID
-   * @param {Object} req - Express request object (for logging context)
-   * @returns {Promise<Object>} Job details
-   */
   async getJobById(jobId, req = null) {
     logNested(req, 'Fetching job by ID', { jobId });
 
     try {
       const job = await Job.findById(jobId);
-      
+
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
       }
@@ -61,24 +53,21 @@ class JobService {
       return job;
     } catch (error) {
       const prefix = req?.logPrefix || '';
-      logger.error(`${prefix}Error fetching job: ${error.message}`, { jobId, error: error.stack });
+      logger.error(`${prefix}Error fetching job: ${error.message}`, {
+        jobId,
+        error: error.stack
+      });
       throw error;
     }
   }
 
-  /**
-   * Create new job
-   * @param {Object} jobData - Job data
-   * @param {Object} req - Express request object (for logging context)
-   * @returns {Promise<Object>} Created job
-   */
   async createJob(jobData, req = null) {
     logNested(req, 'Creating new job', { title: jobData.title });
 
     try {
-      const { 
-        title, 
-        location, 
+      const {
+        title,
+        location,
         workType,
         status,
         summary,
@@ -89,9 +78,11 @@ class JobService {
         compensation
       } = jobData;
 
-      // Validate required fields
       if (!title || !location || !summary || !requiredSkills) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Missing required fields: title, location, summary, and requiredSkills are required');
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          'Missing required fields: title, location, summary, and requiredSkills are required'
+        );
       }
 
       const job = await Job.create({
@@ -115,21 +106,14 @@ class JobService {
     }
   }
 
-  /**
-   * Update job
-   * @param {string} jobId - Job ID
-   * @param {Object} updateData - Update data
-   * @returns {Promise<Object>} Updated job
-   */
   async updateJob(jobId, updateData) {
     logger.info('Updating job', { jobId });
 
     try {
-      const job = await Job.findByIdAndUpdate(
-        jobId,
-        updateData,
-        { new: true, runValidators: true }
-      );
+      const job = await Job.findByIdAndUpdate(jobId, updateData, {
+        new: true,
+        runValidators: true
+      });
 
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
@@ -138,15 +122,14 @@ class JobService {
       logger.info('Job updated successfully', { jobId });
       return job;
     } catch (error) {
-      logger.error(`Error updating job: ${error.message}`, { jobId, error: error.stack });
+      logger.error(`Error updating job: ${error.message}`, {
+        jobId,
+        error: error.stack
+      });
       throw error;
     }
   }
 
-  /**
-   * Delete job
-   * @param {string} jobId - Job ID
-   */
   async deleteJob(jobId) {
     logger.info('Deleting job', { jobId });
 
@@ -159,16 +142,14 @@ class JobService {
 
       logger.info('Job deleted successfully', { jobId });
     } catch (error) {
-      logger.error(`Error deleting job: ${error.message}`, { jobId, error: error.stack });
+      logger.error(`Error deleting job: ${error.message}`, {
+        jobId,
+        error: error.stack
+      });
       throw error;
     }
   }
 
-  /**
-   * Search jobs
-   * @param {string} searchTerm - Search term
-   * @returns {Promise<Array>} Matching jobs
-   */
   async searchJobs(searchTerm) {
     logger.info('Searching jobs', { searchTerm });
 
@@ -180,10 +161,14 @@ class JobService {
       logger.info(`Found ${jobs.length} matching jobs`, { searchTerm });
       return jobs;
     } catch (error) {
-      logger.error(`Error searching jobs: ${error.message}`, { searchTerm, error: error.stack });
+      logger.error(`Error searching jobs: ${error.message}`, {
+        searchTerm,
+        error: error.stack
+      });
       throw error;
     }
   }
 }
 
 export default new JobService();
+

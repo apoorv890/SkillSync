@@ -11,7 +11,7 @@ interface UseApiOptions {
   cacheTime?: number;
   skipCache?: boolean;
   refetchTrigger?: number;
-  onSuccess?: (data: any) => void;
+  onSuccess?: (data: unknown) => void;
   onError?: (error: Error) => void;
 }
 
@@ -98,7 +98,7 @@ export function useApi<T>(
 /**
  * Hook for mutations (POST, PUT, PATCH, DELETE)
  */
-export function useMutation<TData = any, TVariables = any>(
+export function useMutation<TData = unknown, TVariables = unknown>(
   endpoint: string,
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'POST'
 ) {
@@ -168,7 +168,7 @@ export function useMutation<TData = any, TVariables = any>(
 /**
  * Hook for file uploads
  */
-export function useUpload<T = any>() {
+export function useUpload<T = unknown>() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [progress, setProgress] = useState(0);

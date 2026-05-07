@@ -18,9 +18,9 @@ interface RequestState<T> {
 }
 
 // Global cache shared across all component instances
-const globalCache = new Map<string, CacheEntry<any>>();
+const globalCache = new Map<string, CacheEntry<unknown>>();
 // Global pending requests to prevent duplicate fetches
-const pendingRequests = new Map<string, Promise<any>>();
+const pendingRequests = new Map<string, Promise<unknown>>();
 
 const DEFAULT_CACHE_TIME = 5 * 60 * 1000; // 5 minutes
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, List } from 'lucide-react';
+import { List } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -22,6 +22,7 @@ import {
 } from './ui/dialog';
 import { toast } from 'sonner';
 import { useDashboardRefresh } from '../contexts/DashboardContext';
+import { apiClient } from '../lib/apiClient';
 
 const EditJobModal = ({ job, open, onClose, onSuccess }) => {
   const { triggerRefresh } = useDashboardRefresh();
@@ -78,12 +79,12 @@ const EditJobModal = ({ job, open, onClose, onSuccess }) => {
     if (!bulletPoints[field]) {
       // Convert to bullet points
       const lines = currentValue.split('\n').filter(line => line.trim());
-      const bulletText = lines.map(line => `• ${line.replace(/^[•\-\*]\s*/, '')}`).join('\n');
+      const bulletText = lines.map(line => `• ${line.replace(/^[•\-*]\s*/, '')}`).join('\n');
       setValue(field, bulletText);
     } else {
       // Remove bullet points
       const lines = currentValue.split('\n');
-      const plainText = lines.map(line => line.replace(/^[•\-\*]\s*/, '')).join('\n');
+      const plainText = lines.map(line => line.replace(/^[•\-*]\s*/, '')).join('\n');
       setValue(field, plainText);
     }
   };
@@ -91,27 +92,15 @@ const EditJobModal = ({ job, open, onClose, onSuccess }) => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/jobs/${job._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (response.ok) {
-        toast.success('Job updated successfully!');
-        triggerRefresh();
-        onSuccess();
-        onClose();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to update job');
-      }
-    } catch (error) {
-      toast.error('Failed to update job. Please try again.');
+      await apiClient.put(`/jobs/${job._id}`, data);
+      toast.success('Job updated successfully!');
+      triggerRefresh();
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Failed to update job. Please try again.';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,34 +1,31 @@
-// Load environment variables FIRST - before any other imports that might need them
-import dotenv from 'dotenv';
-dotenv.config();
-
-// Now import everything else
+import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import connectDB from './config/database.js';
-import logger from './config/logger.js';
-import { validateEnv } from './config/envValidation.js';
-import requestLogger from './middleware/requestLogger.js';
-import { attachLogPrefix } from './utils/loggerHelper.js';
-import errorHandler from './middleware/errorHandler.js';
-import { apiLimiter } from './middleware/rateLimiter.js';
-import routes from './routes/index.js';
+import cookieParser from 'cookie-parser';
 
-// Validate environment variables - fail fast if missing
+import { validateEnv } from './config/envValidation.js';
+import { attachLogPrefix } from './utils/loggerHelper.js';
+
+import authRoutes from './routes/authRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
+import applicationRoutes from './routes/applicationRoutes.js';
+import candidateRoutes from './routes/candidateRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+
 validateEnv();
 
-// Create Express app
 const app = express();
+app.set('trust proxy', 1);
 
-// CORS configuration - restrict to allowed origins
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+  origin(origin, callback) {
     if (!origin) return callback(null, true);
-    
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
-    
+    const allowedOrigins =
+      process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -39,38 +36,33 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-// Security middleware
 app.use(helmet());
-
-// CORS configuration
 app.use(cors(corsOptions));
-
-// Body parsing with size limits
+app.use(cookieParser(process.env.JWT_SECRET));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(attachLogPrefix);
 
-// Rate limiting for API routes
-app.use('/api', apiLimiter);
-
-// Request logging with user-action detection
-app.use(requestLogger);
-app.use(attachLogPrefix); // Attach logPrefix to req object
-
-// API Routes
-app.use('/api', routes);
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'OK',
+    service: 'skillsync-server',
+    timestamp: new Date().toISOString()
   });
 });
 
-// Global error handler (must be last)
-app.use(errorHandler);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', profileRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/candidates', candidateRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
-// Log startup
-logger.info('SkillSync Backend initialized');
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
 
 export default app;
+

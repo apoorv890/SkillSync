@@ -1,11 +1,7 @@
 import {
   MoreVertical,
-  ChevronsUpDown,
   User,
   LogOut,
-  Settings,
-  CreditCard,
-  Bell,
 } from "lucide-react"
 import {
   Avatar,
@@ -23,7 +19,6 @@ import {
 } from "../ui/dropdown-menu"
 import {
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "../ui/sidebar"
@@ -52,7 +47,7 @@ export function NavUser() {
   };
 
   const userInitials = getInitials(user.fullName || user.name || user.email || 'U');
-  const profilePhotoUrl = (user as any).profilePhotoUrl;
+  const profilePhotoUrl = user.profilePhotoUrl;
 
   return (
     <SidebarMenu>

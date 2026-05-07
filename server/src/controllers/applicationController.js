@@ -1,12 +1,8 @@
 import ApplicationService from '../services/ApplicationService.js';
-import ResumeAnalysisService from '../services/ResumeAnalysisService.js';
 import Application from '../models/Application.js';
-import logger from '../config/logger.js';
-import catchAsync from '../utils/catchAsync.js';
-import ApiResponse from '../utils/ApiResponse.js';
-import ApiError from '../utils/ApiError.js';
-import { HTTP_STATUS } from '../config/constants.js';
-import { logNested, logCompact } from '../utils/loggerHelper.js';
+import logger from '../utils/logger.js';
+import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js';
+import { logNested } from '../utils/loggerHelper.js';
 
 class ApplicationController {
   /**
@@ -24,11 +20,21 @@ class ApplicationController {
 
     logNested(req, 'Submitting application', { jobId });
 
-    const application = await ApplicationService.createApplication({
-      candidateId,
-      jobId,
-      file
-    }, req);
+    const application = await ApplicationService.createApplication(
+      {
+        candidateId,
+        jobId,
+        file
+      },
+      req
+    );
+
+    // Fire-and-forget resume analysis (non-blocking), now in-process monolith call.
+    setImmediate(() => {
+      ApplicationService.triggerATSAnalysis(String(application._id)).catch((error) => {
+        logger.error(`ATS analysis failed: ${error.message}`);
+      });
+    });
 
     return ApiResponse.success(
       res,
@@ -61,13 +67,11 @@ class ApplicationController {
 
     // Find application first
     const status = await ApplicationService.getApplicationStatus(candidateId, jobId);
-    
+
     if (!status || !status.applied) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
     }
 
-    // Get the actual application to find its ID
-    const Application = (await import('../models/Application.js')).default;
     const application = await Application.findOne({ userId: candidateId, jobId });
 
     await ApplicationService.withdrawApplication(application._id, candidateId);
@@ -86,8 +90,8 @@ class ApplicationController {
     const status = await ApplicationService.getApplicationStatus(candidateId, jobId);
 
     return ApiResponse.success(
-      res, 
-      'Status retrieved successfully', 
+      res,
+      'Status retrieved successfully',
       status || { applied: false }
     );
   });
@@ -101,7 +105,11 @@ class ApplicationController {
 
     const applications = await ApplicationService.getApplicationsByCandidate(candidateId);
 
-    return ApiResponse.success(res, 'Applications retrieved successfully', applications);
+    return ApiResponse.success(
+      res,
+      'Applications retrieved successfully',
+      applications
+    );
   });
 
   /**
@@ -113,7 +121,11 @@ class ApplicationController {
 
     const applications = await ApplicationService.getApplicationsByJob(jobId, req);
 
-    return ApiResponse.success(res, 'Applications retrieved successfully', applications);
+    return ApiResponse.success(
+      res,
+      'Applications retrieved successfully',
+      applications
+    );
   });
 
   /**
@@ -140,7 +152,7 @@ class ApplicationController {
 
     logger.info('Manual ATS analysis retry requested', { applicationId });
 
-    const score = await ResumeAnalysisService.retryAnalysis(applicationId);
+    const score = await ApplicationService.retryATSAnalysis(applicationId);
 
     return ApiResponse.success(res, 'ATS analysis completed successfully', {
       atsScore: score
@@ -154,7 +166,7 @@ class ApplicationController {
   getATSStatus = catchAsync(async (req, res) => {
     const { applicationId } = req.params;
 
-    const status = await ResumeAnalysisService.getAnalysisStatus(applicationId);
+    const status = await ApplicationService.getAtsStatus(applicationId);
 
     return ApiResponse.success(res, 'ATS status retrieved successfully', status);
   });
@@ -168,13 +180,17 @@ class ApplicationController {
     const { status } = req.body;
 
     const validStatuses = ['Under Review', 'Shortlisted', 'Rejected', 'Hired'];
-    
+
     if (!status || !validStatuses.includes(status)) {
-      return ApiResponse.error(res, 'Invalid status. Must be one of: ' + validStatuses.join(', '), 400);
+      return ApiResponse.error(
+        res,
+        'Invalid status. Must be one of: ' + validStatuses.join(', '),
+        400
+      );
     }
 
     const application = await Application.findById(applicationId);
-    
+
     if (!application) {
       return ApiResponse.error(res, 'Application not found', 404);
     }
@@ -190,3 +206,4 @@ class ApplicationController {
 }
 
 export default new ApplicationController();
+

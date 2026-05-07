@@ -48,6 +48,14 @@ const applicationSchema = new mongoose.Schema({
       max: 100,
       default: null
     },
+    breakdown: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    matchSummary: {
+      type: String,
+      default: null
+    },
     analyzedAt: {
       type: Date,
       default: null
@@ -64,7 +72,14 @@ const applicationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['applied', 'withdrawn', 'Under Review', 'Shortlisted', 'Rejected', 'Hired'],
+    enum: [
+      'applied',
+      'withdrawn',
+      'Under Review',
+      'Shortlisted',
+      'Rejected',
+      'Hired'
+    ],
     default: 'Under Review'
   },
   appliedAt: {
@@ -85,3 +100,4 @@ applicationSchema.index({ status: 1 });
 applicationSchema.index({ jobId: 1, 'atsScore.score': -1 });
 
 export default mongoose.model('Application', applicationSchema);
+

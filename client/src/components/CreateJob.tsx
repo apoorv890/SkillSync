@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Briefcase, MapPin, FileText, List } from 'lucide-react';
+import { ArrowLeft, Briefcase, MapPin, List } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Input } from './ui/input';
@@ -10,6 +10,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
 import { useDashboardRefresh } from '../contexts/DashboardContext';
+import { apiClient } from '../lib/apiClient';
 
 const CreateJob = () => {
   const navigate = useNavigate();
@@ -45,54 +46,47 @@ const CreateJob = () => {
     if (!bulletPoints[field]) {
       // Convert to bullet points
       const lines = currentValue.split('\n').filter(line => line.trim());
-      const bulletText = lines.map(line => `• ${line.replace(/^[•\-\*]\s*/, '')}`).join('\n');
+      const bulletText = lines.map(line => `• ${line.replace(/^[•\-*]\s*/, '')}`).join('\n');
       setValue(field, bulletText);
     } else {
       // Remove bullet points
       const lines = currentValue.split('\n');
-      const plainText = lines.map(line => line.replace(/^[•\-\*]\s*/, '')).join('\n');
+      const plainText = lines.map(line => line.replace(/^[•\-*]\s*/, '')).join('\n');
       setValue(field, plainText);
     }
   };
 
   const onSubmit = async (data) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/jobs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Job creation response:', result);
-        
-        // Extract job ID from response - handle multiple response formats
-        const jobId = result.data?._id || result.data?.id || result._id || result.id || result.job?._id;
-        
-        if (jobId) {
-          toast.success('Job posting created successfully!');
-          // Trigger dashboard refresh to update stats
-          triggerRefresh();
-          // Small delay to ensure job is saved before navigation
-          setTimeout(() => {
-            navigate(`/jobs/${jobId}`);
-          }, 100);
-        } else {
-          console.error('Could not extract job ID from response:', result);
-          throw new Error('Job ID not returned from server');
-        }
+      const result = (await apiClient.post<{
+        data?: { _id?: string; id?: string };
+        _id?: string;
+        id?: string;
+      }>('/jobs', data)) as {
+        data?: { _id?: string; id?: string };
+        _id?: string;
+        id?: string;
+      };
+
+      const jobId =
+        result.data?._id ||
+        result.data?.id ||
+        result._id ||
+        result.id;
+
+      if (jobId) {
+        toast.success('Job posting created successfully!');
+        triggerRefresh();
+        setTimeout(() => {
+          navigate(`/jobs/${jobId}`);
+        }, 100);
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to create job');
+        toast.error('Job ID not returned from server');
       }
-    } catch (error) {
-      console.error('Error creating job:', error);
-      toast.error('Failed to create job. Please try again.');
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : 'Failed to create job. Please try again.';
+      toast.error(msg);
     }
   };
 
