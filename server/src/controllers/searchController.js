@@ -1,5 +1,5 @@
-import * as searchRead from '../services/searchReadService.js';
-import { sanitizeSearchQuery } from '@skillsync/shared/security';
+import * as searchRead from '../services/searchService.js';
+import { sanitizeSearchQuery } from '../utils/querySanitizer.js';
 
 class SearchController {
   async searchJobs(req, res) {

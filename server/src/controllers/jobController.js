@@ -1,5 +1,4 @@
 import JobService from '../services/JobService.js';
-import logger from '../utils/logger.js';
 import { catchAsync, ApiResponse, HTTP_STATUS } from '../utils/http.js';
 
 class JobController {

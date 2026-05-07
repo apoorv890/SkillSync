@@ -1,5 +1,4 @@
 import ApplicationService from '../services/ApplicationService.js';
-import * as resumeAnalysisClient from '../services/resumeAnalysisClient.js';
 import Application from '../models/Application.js';
 import logger from '../utils/logger.js';
 import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js';
@@ -29,6 +28,13 @@ class ApplicationController {
       },
       req
     );
+
+    // Fire-and-forget resume analysis (non-blocking), now in-process monolith call.
+    setImmediate(() => {
+      ApplicationService.triggerATSAnalysis(String(application._id)).catch((error) => {
+        logger.error(`ATS analysis failed: ${error.message}`);
+      });
+    });
 
     return ApiResponse.success(
       res,
@@ -146,7 +152,7 @@ class ApplicationController {
 
     logger.info('Manual ATS analysis retry requested', { applicationId });
 
-    const score = await resumeAnalysisClient.retryAnalysis(applicationId);
+    const score = await ApplicationService.retryATSAnalysis(applicationId);
 
     return ApiResponse.success(res, 'ATS analysis completed successfully', {
       atsScore: score
