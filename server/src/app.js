@@ -15,6 +15,8 @@ import candidateRoutes from './routes/candidateRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import phoneRoutes from './routes/phoneRoutes.js';
+import phoneAgentRoutes from './routes/phoneAgentRoutes.js';
 
 validateEnv();
 
@@ -59,6 +61,8 @@ app.use('/api/candidates', candidateRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/phone', phoneRoutes);
+app.use('/api/phone-agent', phoneAgentRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

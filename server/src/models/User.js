@@ -60,6 +60,11 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  phoneNumber: {
+    type: String,
+    default: null,
+    trim: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

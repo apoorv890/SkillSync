@@ -16,7 +16,8 @@ const optionalEnvVars = {
   PORT: '5000',
   JWT_EXPIRES_IN: '7d',
   JWT_REFRESH_EXPIRES_IN: '7d',
-  GEMINI_MODEL: 'gemini-2.0-flash'
+  GEMINI_MODEL: 'gemini-2.0-flash',
+  PHONE_AGENT_BASE_URL: 'http://localhost:3010'
 };
 
 export function validateEnv() {

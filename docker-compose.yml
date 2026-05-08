@@ -25,6 +25,7 @@ services:
     environment:
       PORT: "5000"
       MONGODB_URI: mongodb://mongo:27017/SkillSync
+      PHONE_AGENT_BASE_URL: http://phone-agent:3010
     ports:
       - "5000:5000"
     depends_on:
@@ -36,6 +37,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  phone-agent:
+    build:
+      context: ./phone-agent
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3010"
+    ports:
+      - "3010:3010"
+    depends_on:
+      - server
 
 volumes:
   skillsync_mongo:

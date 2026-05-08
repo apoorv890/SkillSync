@@ -1,4 +1,6 @@
 import { Shield, Key, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +13,63 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProfileContent() {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("/api/users/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const body = await res.json().catch(() => ({}));
+        const data = body?.data || {};
+        setFullName(String(data.fullName || ""));
+        setEmail(String(data.email || ""));
+        setPhoneNumber(String(data.phoneNumber || ""));
+      } catch {
+        // ignore
+      }
+    };
+    load();
+  }, []);
+
+  const saveProfile = async () => {
+    try {
+      setSaving(true);
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: fullName.trim() || undefined,
+          email: email.trim() || undefined,
+          phoneNumber: phoneNumber.trim(),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = body?.error || body?.message || "Failed to update profile";
+        throw new Error(msg);
+      }
+      toast.success("Profile updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Tabs defaultValue="personal" className="space-y-6">
       <TabsList className="grid w-full grid-cols-4">
@@ -30,20 +89,32 @@ export default function ProfileContent() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" defaultValue="John" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" defaultValue="Doe" />
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your name"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" defaultValue="+1 (555) 123-4567" />
+                <Input
+                  id="phone"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+15551234567"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="jobTitle">Job Title</Label>
@@ -66,6 +137,11 @@ export default function ProfileContent() {
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
               <Input id="location" defaultValue="San Francisco, CA" />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={saveProfile} disabled={saving} variant="outline">
+                {saving ? "Saving…" : "Save"}
+              </Button>
             </div>
           </CardContent>
         </Card>
