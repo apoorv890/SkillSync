@@ -52,6 +52,75 @@ class PhoneAgentController {
     });
   });
 
+  getApplicationContext = catchAsync(async (req, res) => {
+    const applicationId = sanitizeObjectId(req.params.applicationId);
+    if (!applicationId) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid application id');
+    }
+
+    const application = await Application.findById(applicationId).lean();
+    if (!application) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
+    }
+
+    const user = application.userId ? await User.findById(application.userId).lean() : null;
+    const job = application.jobId ? await Job.findById(application.jobId).lean() : null;
+
+    return ApiResponse.success(res, 'Context retrieved', {
+      applicationId: String(application._id),
+      candidateName: user?.fullName || application.candidateInfo?.name || null,
+      candidateEmail: user?.email || application.candidateInfo?.email || null,
+      jobTitle: job?.title || null,
+      jobRequirements: job?.requiredSkills || job?.requirements || null,
+      // Keep these null for now; later phases can include resume summaries/interview scripts.
+      resumeSummary: null,
+      interviewScript: null
+    });
+  });
+
+  /**
+   * GET /api/phone-agent/calls/:callSid/application-context
+   * Resolves application + job/candidate context from the CallSession row written when SkillSync initiates the outbound call.
+   */
+  getApplicationContextByCallSid = catchAsync(async (req, res) => {
+    const callSid =
+      typeof req.params.callSid === 'string' ? req.params.callSid.trim() : '';
+    if (!callSid) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid callSid');
+    }
+
+    const link = await CallSession.findOne({ callSid }).lean();
+    if (!link?.applicationId) {
+      throw new ApiError(
+        HTTP_STATUS.NOT_FOUND,
+        'No application linked to this call. Place outbound calls via SkillSync (includes applicationId), or pass applicationId on the Twilio voice/stream URL.'
+      );
+    }
+
+    const applicationId = sanitizeObjectId(link.applicationId);
+    if (!applicationId) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid application id on call session');
+    }
+
+    const application = await Application.findById(applicationId).lean();
+    if (!application) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
+    }
+
+    const user = application.userId ? await User.findById(application.userId).lean() : null;
+    const job = application.jobId ? await Job.findById(application.jobId).lean() : null;
+
+    return ApiResponse.success(res, 'Context retrieved', {
+      applicationId: String(application._id),
+      candidateName: user?.fullName || application.candidateInfo?.name || null,
+      candidateEmail: user?.email || application.candidateInfo?.email || null,
+      jobTitle: job?.title || null,
+      jobRequirements: job?.requiredSkills || job?.requirements || null,
+      resumeSummary: null,
+      interviewScript: null
+    });
+  });
+
   postEvent = catchAsync(async (req, res) => {
     const sessionId = sanitizeObjectId(req.params.id);
     if (!sessionId) {

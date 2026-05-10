@@ -5,6 +5,24 @@ import { createLogger } from './logger.js';
 const log = createLogger('TwilioRoutes');
 
 /**
+ * Twilio signs the exact public URL of this webhook (scheme + host + path + query).
+ * Must match ngrok / proxies — do not use only env-based URL when query params differ.
+ * @param {import('express').Request} req
+ */
+function getWebhookUrlForSignature(req) {
+  const proto =
+    (req.get('x-forwarded-proto') || '').split(',')[0]?.trim() ||
+    req.protocol ||
+    'https';
+  const host =
+    (req.get('x-forwarded-host') || '').split(',')[0]?.trim() ||
+    req.get('host') ||
+    '';
+  const pathAndQuery = req.originalUrl || '';
+  return `${proto}://${host}${pathAndQuery}`;
+}
+
+/**
  * @param {{
  *   twilioVoiceUrl: string,
  *   wssStreamUrl: string,
@@ -34,6 +52,10 @@ export function createTwilioRouter(config) {
         typeof req.body?.to === 'string' && req.body.to.trim()
           ? req.body.to.trim()
           : config.outboundTo;
+      const applicationId =
+        typeof req.body?.applicationId === 'string' && req.body.applicationId.trim()
+          ? req.body.applicationId.trim()
+          : null;
 
       if (!to) {
         return res.status(400).json({
@@ -45,7 +67,9 @@ export function createTwilioRouter(config) {
       const call = await getTwilio().calls.create({
         from: config.twilioPhoneNumber,
         to,
-        url: config.twilioVoiceUrl,
+        url: applicationId
+          ? `${config.twilioVoiceUrl}?applicationId=${encodeURIComponent(applicationId)}`
+          : config.twilioVoiceUrl,
       });
 
       log.log(`Call SID: ${call.sid}`);
@@ -59,7 +83,7 @@ export function createTwilioRouter(config) {
   router.post('/voice', (req, res) => {
     try {
       const signature = req.header('X-Twilio-Signature') || '';
-      const url = config.twilioVoiceUrl;
+      const url = getWebhookUrlForSignature(req);
 
       const isValid = Twilio.validateRequest(
         config.twilioAuthToken,
@@ -77,10 +101,19 @@ export function createTwilioRouter(config) {
       return res.status(401).send('Unauthorized');
     }
 
+    const applicationId =
+      typeof req.query?.applicationId === 'string' && req.query.applicationId.trim()
+        ? req.query.applicationId.trim()
+        : null;
+
+    const streamUrl = applicationId
+      ? `${config.wssStreamUrl}?applicationId=${encodeURIComponent(applicationId)}`
+      : config.wssStreamUrl;
+
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="${escapeXml(config.wssStreamUrl)}"/>
+    <Stream url="${escapeXml(streamUrl)}"/>
   </Connect>
 </Response>`;
     res.type('text/xml');

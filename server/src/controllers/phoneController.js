@@ -49,7 +49,7 @@ class PhoneController {
     const upstream = await fetch(`${baseUrl}/twilio/call`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to })
+      body: JSON.stringify({ to, applicationId: String(application._id) })
     });
 
     const upstreamBody = await upstream.json().catch(() => ({}));

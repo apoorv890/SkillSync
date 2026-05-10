@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 
 import { validateEnv } from './config/envValidation.js';
 import { attachLogPrefix } from './utils/loggerHelper.js';
+import { ApiError, ApiResponse, HTTP_STATUS } from './utils/http.js';
 
 import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
@@ -17,6 +18,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import phoneRoutes from './routes/phoneRoutes.js';
 import phoneAgentRoutes from './routes/phoneAgentRoutes.js';
+import calendarRoutes from './routes/calendarRoutes.js';
 
 validateEnv();
 
@@ -63,9 +65,29 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/phone', phoneRoutes);
 app.use('/api/phone-agent', phoneAgentRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+// Central error handler (ensures JSON for ApiError so phone-agent can surface the real reason)
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err instanceof ApiError) {
+    return ApiResponse.error(res, err.message, err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  }
+
+  // Express body-parser / JSON parse errors
+  if (err?.type === 'entity.parse.failed') {
+    return ApiResponse.error(res, 'Invalid JSON body', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  return ApiResponse.error(
+    res,
+    err?.message || 'Internal server error',
+    HTTP_STATUS.INTERNAL_SERVER_ERROR
+  );
 });
 
 export default app;

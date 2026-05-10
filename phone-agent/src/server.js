@@ -18,6 +18,7 @@ try {
 }
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 
@@ -42,8 +43,8 @@ server.on('upgrade', (req, socket, head) => {
   }
 });
 
-wss.on('connection', (ws) => {
-  handleMediaStream(ws).catch((err) => {
+wss.on('connection', (ws, req) => {
+  handleMediaStream(ws, req).catch((err) => {
     log.error('handleMediaStream failed', err);
     try {
       ws.close();

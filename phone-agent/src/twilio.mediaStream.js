@@ -6,19 +6,31 @@ import {
 } from './audio.pipeline.js';
 import { createLiveSession } from './gemini.liveSession.js';
 import { createLogger } from './logger.js';
+import { skillsyncFetch } from './skillsyncClient.js';
 
 const log = createLogger('TwilioMedia');
 
 /**
  * @param {import('ws').WebSocket} ws
+ * @param {import('http').IncomingMessage} req
  */
-export async function handleMediaStream(ws) {
+export async function handleMediaStream(ws, req) {
   log.log('Twilio media stream connected');
+
+  let applicationIdFromUrl = null;
+  try {
+    const u = new URL(req.url || '', 'http://localhost');
+    const v = u.searchParams.get('applicationId');
+    applicationIdFromUrl = v && v.trim() ? v.trim() : null;
+  } catch {
+    applicationIdFromUrl = null;
+  }
 
   let streamSid = null;
   /** @type {Awaited<ReturnType<typeof createLiveSession>> | null} */
   let geminiSession = null;
   let geminiReady = false;
+  let geminiStarting = false;
   let greetingTriggered = false;
   let closed = false;
   let firstInboundLogged = false;
@@ -152,6 +164,71 @@ export async function handleMediaStream(ws) {
     }
   };
 
+  const drainPendingMedia = async () => {
+    log.log(
+      `Gemini ready, draining ${pendingMedia.length} buffered media frame(s)`,
+    );
+    while (pendingMedia.length > 0 && !closed) {
+      const payload = pendingMedia.shift();
+      try {
+        await sendInboundAudioToGemini(payload);
+      } catch (err) {
+        log.error('Error draining buffered media', err);
+      }
+    }
+    tryTriggerGreeting();
+  };
+
+  /**
+   * Start Gemini only after Twilio `start` so we have `callSid` to resolve applicationId from SkillSync CallSession.
+   */
+  const ensureGeminiStarted = async (callSid) => {
+    if (geminiSession || geminiStarting || closed) return;
+    geminiStarting = true;
+    try {
+      let appId = applicationIdFromUrl;
+      if (!appId && callSid) {
+        try {
+          const ctx = await skillsyncFetch(
+            `/api/phone-agent/calls/${encodeURIComponent(callSid)}/application-context`,
+            { method: 'GET' },
+          );
+          appId = typeof ctx?.applicationId === 'string' ? ctx.applicationId : null;
+          if (appId) {
+            log.log(
+              `Resolved applicationId from SkillSync CallSession (callSid=${callSid})`,
+            );
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log.warn(
+            `Could not resolve applicationId from callSid (${callSid}): ${msg}`,
+          );
+        }
+      } else if (appId) {
+        log.log('Using applicationId from stream URL query');
+      }
+
+      geminiSession = await createLiveSession({
+        applicationId: appId || null,
+        onmessage: handleGeminiMessage,
+        onerror: (e) => {
+          log.error(`Gemini session error: ${e?.message ?? e}`);
+          closeAll('gemini error');
+        },
+        onclose: () => closeAll('gemini closed'),
+      });
+
+      geminiReady = true;
+      geminiStarting = false;
+      await drainPendingMedia();
+    } catch (err) {
+      geminiStarting = false;
+      log.error('Failed to start Gemini session', err);
+      closeAll('gemini start failed');
+    }
+  };
+
   ws.on('message', async (data) => {
     let message;
     try {
@@ -168,11 +245,15 @@ export async function handleMediaStream(ws) {
           log.log('Twilio stream: connected');
           break;
 
-        case 'start':
+        case 'start': {
           streamSid = message.start?.streamSid ?? message.streamSid ?? null;
-          log.log(`Twilio stream started, streamSid=${streamSid}`);
-          tryTriggerGreeting();
+          const callSid = message.start?.callSid ?? null;
+          log.log(
+            `Twilio stream started, streamSid=${streamSid} callSid=${callSid}`,
+          );
+          void ensureGeminiStarted(callSid);
           break;
+        }
 
         case 'media': {
           if (!firstInboundLogged) {
@@ -206,36 +287,4 @@ export async function handleMediaStream(ws) {
     log.error(`Twilio WebSocket error: ${err.message}`);
     closeAll('twilio ws error');
   });
-
-  try {
-    geminiSession = await createLiveSession({
-      onmessage: handleGeminiMessage,
-      onerror: (e) => {
-        log.error(`Gemini session error: ${e?.message ?? e}`);
-        closeAll('gemini error');
-      },
-      onclose: () => closeAll('gemini closed'),
-    });
-  } catch (err) {
-    log.error('Failed to start Gemini session', err);
-    closeAll('gemini start failed');
-    return;
-  }
-
-  geminiReady = true;
-  log.log(
-    `Gemini ready, draining ${pendingMedia.length} buffered media frame(s)`,
-  );
-
-  while (pendingMedia.length > 0 && !closed) {
-    const payload = pendingMedia.shift();
-    try {
-      await sendInboundAudioToGemini(payload);
-    } catch (err) {
-      log.error('Error draining buffered media', err);
-    }
-  }
-
-  tryTriggerGreeting();
 }
-

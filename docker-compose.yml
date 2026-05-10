@@ -45,6 +45,8 @@ services:
     env_file: .env
     environment:
       PORT: "3010"
+      # Inside the container, localhost is not the SkillSync server — use the compose service name.
+      SKILLSYNC_API_BASE_URL: http://server:5000
     ports:
       - "3010:3010"
     depends_on:
