@@ -48,7 +48,7 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:5000/api/applications/${applicationId}/status`, {
+      const response = await fetch(`/api/applications/${applicationId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -75,7 +75,7 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
       setDownloadingResume(applicationId);
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:5000/api/applications/resume/${applicationId}`, {
+      const response = await fetch(`/api/applications/resume/${applicationId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -96,7 +96,7 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
       setCallingId(applicationId);
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:5000/api/phone/call`, {
+      const response = await fetch(`/api/phone/call`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

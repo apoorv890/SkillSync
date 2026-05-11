@@ -30,7 +30,7 @@ const SearchPage = () => {
     const performSearch = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`http://localhost:5000/api/search/unified?query=${encodeURIComponent(initialQuery)}`);
+        const response = await fetch(`/api/search/unified?query=${encodeURIComponent(initialQuery)}`);
         
         if (!response.ok) {
           throw new Error('Search failed');

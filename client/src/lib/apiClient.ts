@@ -3,7 +3,15 @@
  * Industry-standard solution for optimal API performance
  */
 
-const API_BASE_URL = 'http://localhost:5000/api';
+function getApiBaseUrl(): string {
+  const raw = import.meta.env.VITE_API_BASE_URL;
+  if (raw != null && String(raw).trim() !== '') {
+    return String(raw).trim().replace(/\/$/, '');
+  }
+  return '/api';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Global cache for responses
 const responseCache = new Map<string, { data: unknown; timestamp: number }>();

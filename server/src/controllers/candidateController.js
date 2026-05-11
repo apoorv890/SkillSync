@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import fs from 'fs';
 import pdfParse from 'pdf-parse';
 import { generateGeminiText } from '../utils/gemini.js';
 import Job from '../models/Job.js';
@@ -175,7 +174,10 @@ Return ONLY a valid JSON object with the following structure:
 
       for (const file of req.files) {
         try {
-          const pdfBuffer = fs.readFileSync(file.path);
+          const pdfBuffer = file.buffer;
+          if (!pdfBuffer?.length) {
+            throw new Error('Empty file upload');
+          }
           const data = await pdfParse(pdfBuffer);
           const resumeText = data.text;
 
@@ -183,7 +185,7 @@ Return ONLY a valid JSON object with the following structure:
             resumeText,
             jobDescription
           );
-          candidateData.resumeUrl = file.path;
+          candidateData.resumeUrl = `memory:${file.originalname}`;
 
           const candidate = new Candidate({
             jobId,

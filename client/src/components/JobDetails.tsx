@@ -54,7 +54,7 @@ const JobDetails = () => {
       const checkApplicationStatus = async () => {
         try {
           const token = localStorage.getItem('token');
-          const response = await fetch(`http://localhost:5000/api/applications/job/${id}/status`, {
+          const response = await fetch(`/api/applications/job/${id}/status`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (response.ok) {
@@ -81,7 +81,7 @@ const JobDetails = () => {
     setWithdrawing(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/applications/job/${id}/withdraw`, {
+      const response = await fetch(`/api/applications/job/${id}/withdraw`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
