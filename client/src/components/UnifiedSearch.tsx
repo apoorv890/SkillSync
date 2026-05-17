@@ -18,7 +18,7 @@ const UnifiedSearch = ({ onClose }) => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:5000/api/search/unified?query=${encodeURIComponent(searchQuery)}`
+        `/api/search/unified?query=${encodeURIComponent(searchQuery)}`
       );
       
       if (!response.ok) {

@@ -1,35 +1,22 @@
-# SkillSync: MongoDB + microservices + gateway.
-# Copy `.env.example` to `.env` at repo root and set secrets before `docker compose up --build`.
-
 services:
-  mongo:
-    image: mongo:7
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - skillsync_mongo:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-  server:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     restart: unless-stopped
     env_file: .env
     environment:
+      NODE_ENV: production
+      SERVE_SPA: "1"
+      DISABLE_SPA_CACHE: "1"
       PORT: "5000"
-      MONGODB_URI: mongodb://mongo:27017/SkillSync
+      PHONE_AGENT_BASE_URL: http://phone-agent:3010
+      ALLOWED_ORIGINS: http://localhost:5000
     ports:
       - "5000:5000"
-    depends_on:
-      mongo:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/health"]
       interval: 15s
@@ -37,5 +24,47 @@ services:
       retries: 5
       start_period: 30s
 
-volumes:
-  skillsync_mongo:
+  phone-agent:
+    build:
+      context: ./phone-agent
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3010"
+      SKILLSYNC_API_BASE_URL: http://app:5000
+      NGROK_API_URL: http://ngrok:4040
+    ports:
+      - "3010:3010"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3010/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    # Started with every `docker compose up`. Set NGROK_AUTHTOKEN in root .env; empty → ERR_NGROK_4018.
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    command:
+      - "http"
+      - "phone-agent:3010"
+      - "--log=stdout"
+    ports:
+      - "4040:4040"
+    depends_on:
+      phone-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4040/api/tunnels"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

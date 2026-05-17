@@ -60,6 +60,19 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  phoneNumber: {
+    type: String,
+    default: null,
+    trim: true
+  },
+  googleCalendarRefreshToken: {
+    type: String,
+    default: null
+  },
+  googleCalendarConnectedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

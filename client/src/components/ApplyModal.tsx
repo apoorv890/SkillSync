@@ -52,7 +52,7 @@ const ApplyModal = ({ jobId, jobTitle, onClose, onSuccess }) => {
       formData.append('resume', file);
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/applications/job/${jobId}/apply`, {
+      const response = await fetch(`/api/applications/job/${jobId}/apply`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

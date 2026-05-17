@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -28,6 +28,7 @@ type ApplicantsApiResponse = { data?: ApplicantRow[] } | ApplicantRow[];
 
 const ApplicantsList = ({ jobId }: { jobId: string }) => {
   const [downloadingResume, setDownloadingResume] = useState(null);
+  const [callingId, setCallingId] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
   // Fetch applicants with deduplication
@@ -47,7 +48,7 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:5000/api/applications/${applicationId}/status`, {
+      const response = await fetch(`/api/applications/${applicationId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -74,7 +75,7 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
       setDownloadingResume(applicationId);
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:5000/api/applications/resume/${applicationId}`, {
+      const response = await fetch(`/api/applications/resume/${applicationId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -87,6 +88,40 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
       console.error('Error fetching resume:', error);
     } finally {
       setDownloadingResume(null);
+    }
+  };
+
+  const handleCallCandidate = async (applicationId: string) => {
+    try {
+      setCallingId(applicationId);
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`/api/phone/call`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ applicationId })
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const msg =
+          result?.message ||
+          result?.error ||
+          result?.errors?.[0]?.message ||
+          'Failed to initiate call';
+        throw new Error(msg);
+      }
+
+      toast.success('Calling candidate…');
+    } catch (error) {
+      console.error('Error calling candidate:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to call candidate');
+    } finally {
+      setCallingId(null);
     }
   };
 
@@ -124,7 +159,8 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
                 <TableHead className="font-medium text-foreground w-[25%]">Email</TableHead>
                 <TableHead className="font-medium text-foreground w-[15%]">ATS Score</TableHead>
                 <TableHead className="font-medium text-foreground w-[15%]">Resume</TableHead>
-                <TableHead className="font-medium text-foreground w-[25%]">Status</TableHead>
+                <TableHead className="font-medium text-foreground w-[15%]">Call</TableHead>
+                <TableHead className="font-medium text-foreground w-[15%]">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -166,6 +202,22 @@ const ApplicantsList = ({ jobId }: { jobId: string }) => {
                         <FileText className="h-4 w-4" />
                       )}
                       View
+                    </Button>
+                  </TableCell>
+                  <TableCell className="py-3 align-middle">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCallCandidate(app._id)}
+                      disabled={callingId === app._id}
+                      className="h-8 px-3 flex items-center gap-2"
+                    >
+                      {callingId === app._id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Phone className="h-4 w-4" />
+                      )}
+                      Call
                     </Button>
                   </TableCell>
                   <TableCell className="py-3 align-middle">

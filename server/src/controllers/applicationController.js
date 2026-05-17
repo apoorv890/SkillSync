@@ -198,6 +198,14 @@ class ApplicationController {
     application.status = status;
     await application.save();
 
+    // Store a simple activity event for phone/interview-related statuses (minimal integration for now).
+    // This is intentionally lightweight; richer analytics can come later.
+    if (['Shortlisted', 'Hired', 'Rejected'].includes(status)) {
+      setImmediate(() => {
+        // no-op placeholder for future analytics/event bus
+      });
+    }
+
     return ApiResponse.success(res, 'Application status updated successfully', {
       applicationId: application._id,
       status: application.status

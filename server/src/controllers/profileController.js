@@ -23,6 +23,7 @@ export const getUserProfile = async (req, res) => {
         email: user.email,
         role: user.role,
         profilePhotoUrl: user.profilePhotoUrl,
+        phoneNumber: user.phoneNumber || null,
         createdAt: user.createdAt
       }
     });
@@ -41,7 +42,7 @@ export const getUserProfile = async (req, res) => {
  */
 export const updateUserProfile = async (req, res) => {
   try {
-    const { fullName, email } = req.body;
+    const { fullName, email, phoneNumber } = req.body;
     const user = await User.findById(req.userId);
 
     if (!user) {
@@ -62,6 +63,7 @@ export const updateUserProfile = async (req, res) => {
       }
       user.email = email;
     }
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber || null;
 
     await user.save({ validateModifiedOnly: true });
 
@@ -73,7 +75,8 @@ export const updateUserProfile = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
-        profilePhotoUrl: user.profilePhotoUrl
+        profilePhotoUrl: user.profilePhotoUrl,
+        phoneNumber: user.phoneNumber || null
       }
     });
   } catch (error) {

@@ -37,7 +37,7 @@ const UserDashboard = () => {
     const fetchDashboardStats = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/dashboard/stats', {
+        const response = await fetch('/api/dashboard/stats', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

@@ -18,6 +18,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    headers: {
+      // Avoid browser cache corruption / ERR_CACHE_READ_FAILURE on dev-served modules.
+      'Cache-Control': 'no-store',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
