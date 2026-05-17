@@ -15,7 +15,7 @@
     "start": "npm run build:client && npm run start:server",
     "dev:docker": "docker compose up --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f server",
+    "docker:logs": "docker compose logs -f app",
     "smoke": "node scripts/smoke.mjs",
     "seed:five-jobs": "node scripts/seedFiveJobs.mjs"
   },

@@ -1,6 +1,11 @@
 import express from 'express';
 import Twilio from 'twilio';
 import { createLogger } from './logger.js';
+import {
+  getPublicBaseUrlFromRequest,
+  resolvePublicBaseUrl,
+  toWebSocketBaseUrl,
+} from './publicBaseUrl.js';
 
 const log = createLogger('TwilioRoutes');
 
@@ -10,22 +15,15 @@ const log = createLogger('TwilioRoutes');
  * @param {import('express').Request} req
  */
 function getWebhookUrlForSignature(req) {
-  const proto =
-    (req.get('x-forwarded-proto') || '').split(',')[0]?.trim() ||
-    req.protocol ||
-    'https';
-  const host =
-    (req.get('x-forwarded-host') || '').split(',')[0]?.trim() ||
-    req.get('host') ||
-    '';
+  const publicBaseUrl = getPublicBaseUrlFromRequest(req);
   const pathAndQuery = req.originalUrl || '';
-  return `${proto}://${host}${pathAndQuery}`;
+  return `${publicBaseUrl}${pathAndQuery}`;
 }
 
 /**
  * @param {{
- *   twilioVoiceUrl: string,
- *   wssStreamUrl: string,
+ *   publicBaseUrl?: string,
+ *   ngrokApiUrl?: string,
  *   twilioAccountSid: string,
  *   twilioAuthToken: string,
  *   twilioPhoneNumber: string,
@@ -64,12 +62,14 @@ export function createTwilioRouter(config) {
         });
       }
 
+      const publicBaseUrl = await resolvePublicBaseUrl(config);
+      const twilioVoiceUrl = `${publicBaseUrl}/twilio/voice`;
       const call = await getTwilio().calls.create({
         from: config.twilioPhoneNumber,
         to,
         url: applicationId
-          ? `${config.twilioVoiceUrl}?applicationId=${encodeURIComponent(applicationId)}`
-          : config.twilioVoiceUrl,
+          ? `${twilioVoiceUrl}?applicationId=${encodeURIComponent(applicationId)}`
+          : twilioVoiceUrl,
       });
 
       log.log(`Call SID: ${call.sid}`);
@@ -106,9 +106,11 @@ export function createTwilioRouter(config) {
         ? req.query.applicationId.trim()
         : null;
 
+    const publicBaseUrl = getPublicBaseUrlFromRequest(req);
+    const wssStreamUrl = `${toWebSocketBaseUrl(publicBaseUrl)}/twilio/stream`;
     const streamUrl = applicationId
-      ? `${config.wssStreamUrl}?applicationId=${encodeURIComponent(applicationId)}`
-      : config.wssStreamUrl;
+      ? `${wssStreamUrl}?applicationId=${encodeURIComponent(applicationId)}`
+      : wssStreamUrl;
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

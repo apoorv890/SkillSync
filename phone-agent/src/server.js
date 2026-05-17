@@ -6,6 +6,7 @@ import { loadConfig } from './config.js';
 import { createTwilioRouter } from './twilio.routes.js';
 import { handleMediaStream } from './twilio.mediaStream.js';
 import { createLogger } from './logger.js';
+import { resolvePublicBaseUrl } from './publicBaseUrl.js';
 
 const log = createLogger('Server');
 
@@ -56,5 +57,19 @@ wss.on('connection', (ws, req) => {
 
 server.listen(config.port, () => {
   log.log(`Listening on http://localhost:${config.port}`);
-  log.log(`PUBLIC_BASE_URL=${config.publicBaseUrl}`);
+  if (config.publicBaseUrl) {
+    log.log(`PUBLIC_BASE_URL=${config.publicBaseUrl}`);
+    return;
+  }
+
+  if (config.ngrokApiUrl) {
+    log.log(`PUBLIC_BASE_URL=auto via ${config.ngrokApiUrl}`);
+    resolvePublicBaseUrl(config)
+      .then((publicBaseUrl) => {
+        log.log(`Resolved ngrok tunnel: ${publicBaseUrl}`);
+      })
+      .catch((error) => {
+        log.warn(`Could not resolve ngrok tunnel yet: ${error.message}`);
+      });
+  }
 });

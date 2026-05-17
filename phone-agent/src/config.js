@@ -12,15 +12,13 @@ const REQUIRED = [
   'TWILIO_ACCOUNT_SID',
   'TWILIO_AUTH_TOKEN',
   'TWILIO_PHONE_NUMBER',
-  'PUBLIC_BASE_URL',
 ];
 
 /**
  * @returns {{
  *   port: number,
- *   publicBaseUrl: string,
- *   twilioVoiceUrl: string,
- *   wssStreamUrl: string,
+ *   publicBaseUrl?: string,
+ *   ngrokApiUrl?: string,
  *   outboundTo: string | undefined,
  *   geminiApiKey: string,
  *   twilioAccountSid: string,
@@ -36,15 +34,17 @@ export function loadConfig() {
     );
   }
 
-  let publicBaseUrl = process.env.PUBLIC_BASE_URL.trim().replace(/\/$/, '');
-  if (!/^https?:\/\//i.test(publicBaseUrl)) {
+  let publicBaseUrl = process.env.PUBLIC_BASE_URL?.trim().replace(/\/$/, '') || undefined;
+  if (publicBaseUrl && !/^https?:\/\//i.test(publicBaseUrl)) {
     publicBaseUrl = `https://${publicBaseUrl}`;
   }
 
-  const twilioVoiceUrl = `${publicBaseUrl}/twilio/voice`;
-  const wssStreamUrl =
-    publicBaseUrl.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') +
-    '/twilio/stream';
+  const ngrokApiUrl = process.env.NGROK_API_URL?.trim().replace(/\/$/, '') || undefined;
+  if (!publicBaseUrl && !ngrokApiUrl) {
+    throw new Error(
+      'Missing PUBLIC_BASE_URL or NGROK_API_URL. Twilio needs a public HTTPS URL for the phone-agent.',
+    );
+  }
 
   // NOTE: Vite client uses 3000 in dev; keep phone-agent on a different port by default.
   const port = parseInt(process.env.PORT ?? '3010', 10);
@@ -57,8 +57,7 @@ export function loadConfig() {
   return {
     port,
     publicBaseUrl,
-    twilioVoiceUrl,
-    wssStreamUrl,
+    ngrokApiUrl,
     outboundTo,
     geminiApiKey: process.env.GEMINI_API_KEY,
     twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,

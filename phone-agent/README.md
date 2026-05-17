@@ -25,7 +25,7 @@ npm install
 npm run start:dev
 ```
 
-Required environment variables: `GEMINI_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `PUBLIC_BASE_URL`.
+Required environment variables: `GEMINI_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, plus either `PUBLIC_BASE_URL` or `NGROK_API_URL`.
 
 ## Endpoints
 
@@ -38,7 +38,7 @@ Required environment variables: `GEMINI_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_
 
 ## Flow
 
-1. `POST /twilio/call` creates a call whose `url` is `{PUBLIC_BASE_URL}/twilio/voice`.
+1. `POST /twilio/call` creates a call whose `url` is `{PUBLIC_BASE_URL}/twilio/voice`. If `PUBLIC_BASE_URL` is not set, it can resolve the active tunnel from `NGROK_API_URL`.
 2. When answered, Twilio fetches `/twilio/voice` and opens a WebSocket to `wss://{host}/twilio/stream`.
 3. Audio is decoded, upsampled to 16 kHz PCM for Gemini input; Gemini audio is resampled to mulaw 8 kHz for Twilio output.
 
