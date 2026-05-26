@@ -14,7 +14,7 @@ function getJWTSecret() {
  * Token Service
  * Handles JWT token generation, validation, blacklisting, and refresh tokens
  */
-const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '7d';
+const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '15m';
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
 
 function verifyToken(token) {
