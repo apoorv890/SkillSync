@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { SectionCards } from './section-cards'
 import { AnalyticsChart } from './analytics-chart'
 import { useDashboardRefresh } from '../../contexts/DashboardContext'
-import { useApi } from '../../hooks/useApi'
+import { useApi } from '../../lib/api'
 import { Button } from '../ui/button'
 import { Moon, Sun } from 'lucide-react'
 

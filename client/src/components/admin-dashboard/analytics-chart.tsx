@@ -3,7 +3,7 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } fro
 import { Card, CardContent } from "../ui/card"
 import { ChartTooltip } from "../ui/chart"
 import { useDashboardRefresh } from "../../contexts/DashboardContext"
-import { useApi } from "../../hooks/useApi"
+import { useApi } from "../../lib/api"
 import { cn } from "../../lib/utils"
 
 interface AnalyticsData {

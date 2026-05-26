@@ -8,7 +8,7 @@ import { Skeleton } from './ui/skeleton';
 import { Input } from './ui/input';
 import FilterPanel from './FilterPanel';
 import { useDashboardRefresh } from '../contexts/DashboardContext';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
 const JobCardSkeleton = () => (

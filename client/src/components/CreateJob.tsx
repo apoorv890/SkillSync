@@ -10,7 +10,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
 import { useDashboardRefresh } from '../contexts/DashboardContext';
-import { apiClient } from '../lib/apiClient';
+import { apiClient } from '../lib/api';
 
 const CreateJob = () => {
   const navigate = useNavigate();

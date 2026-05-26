@@ -23,7 +23,7 @@ import EditJobModal from './EditJobModal';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import { useDashboardRefresh } from '../contexts/DashboardContext';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../lib/api';
 
 const JobDetails = () => {
   const { id } = useParams();
