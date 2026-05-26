@@ -7,6 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+#cursor
+.cursor
+.cursor/rules
+.cursor/rules/implementor.mdc
+.cursor/rules/orchestrator.mdc
+.cursor/rules/planner.mdc
+
 node_modules
 dist
 dist-ssr
