@@ -1,5 +1,4 @@
 import ApplicationService from '../services/ApplicationService.js';
-import Application from '../models/Application.js';
 import logger from '../utils/logger.js';
 import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js';
 import { logNested } from '../utils/loggerHelper.js';
@@ -65,16 +64,7 @@ class ApplicationController {
 
     logger.info('Withdrawal requested', { candidateId, jobId });
 
-    // Find application first
-    const status = await ApplicationService.getApplicationStatus(candidateId, jobId);
-
-    if (!status || !status.applied) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
-    }
-
-    const application = await Application.findOne({ userId: candidateId, jobId });
-
-    await ApplicationService.withdrawApplication(application._id, candidateId);
+    await ApplicationService.withdrawApplication(candidateId, jobId);
 
     return ApiResponse.success(res, 'Application withdrawn successfully');
   });
