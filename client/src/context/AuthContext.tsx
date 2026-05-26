@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import { createContext, useState, useEffect, ReactNode } from 'react';
 import type { User, AuthContextType } from '../types';
 
 export const AuthContext = createContext<AuthContextType>({
@@ -36,8 +36,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   });
   
-  // Memoized logout function to prevent re-renders
-  const logout = useCallback(async () => {
+  const logout = async () => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
@@ -54,7 +53,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsAuthenticated(false);
     setUser(null);
     window.dispatchEvent(new Event('storage'));
-  }, []);
+  };
   
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -101,14 +100,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, []);
 
-  // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(
-    () => ({ isAuthenticated, user, setIsAuthenticated, setUser, logout }),
-    [isAuthenticated, user, logout]
-  );
-
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={{ isAuthenticated, user, setIsAuthenticated, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
