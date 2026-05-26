@@ -22,7 +22,7 @@ import ApplicantsList from './ApplicantsList';
 import EditJobModal from './EditJobModal';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
-import { useDashboardRefresh } from '../contexts/DashboardContext';
+import { useDashboardRefresh } from '../context/DashboardContext';
 import { useApi } from '../lib/api';
 
 const JobDetails = () => {

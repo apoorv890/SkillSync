@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { memo } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
-import { DashboardProvider } from './contexts/DashboardContext';
+import { DashboardProvider } from './context/DashboardContext';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/sonner';
 import type { ProtectedRouteProps } from './types';

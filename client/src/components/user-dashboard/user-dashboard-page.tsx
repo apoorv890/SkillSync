@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { UserStatsCards } from './user-stats-cards'
-import { useDashboardRefresh } from '../../contexts/DashboardContext'
+import { useDashboardRefresh } from '../../context/DashboardContext'
 import { Button } from '../ui/button'
 import { Moon, Sun } from 'lucide-react'
 

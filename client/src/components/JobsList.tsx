@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import { Input } from './ui/input';
 import FilterPanel from './FilterPanel';
-import { useDashboardRefresh } from '../contexts/DashboardContext';
+import { useDashboardRefresh } from '../context/DashboardContext';
 import { useApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
