@@ -185,7 +185,7 @@ Return ONLY a valid JSON object with the following structure:
             resumeText,
             jobDescription
           );
-          candidateData.resumeUrl = `memory:${file.originalname}`;
+          candidateData.resumeUrl = null;
 
           const candidate = new Candidate({
             jobId,

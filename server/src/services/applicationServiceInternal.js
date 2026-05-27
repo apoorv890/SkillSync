@@ -4,6 +4,7 @@ import Candidate from '../models/Candidate.js';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
 import { escapeRegExp } from '../utils/searchUtils.js';
+import { APPLICATION_STATUS } from '../utils/constants.js';
 
 async function attachJobsToApplications(apps) {
   const jobIds = [...new Set(apps.map((a) => String(a.jobId)).filter(Boolean))];
@@ -87,17 +88,17 @@ export async function getUserDashboardApplicationStats(userId) {
 
   const activeApplications = await Application.countDocuments({
     userId: oid,
-    status: { $in: ['Under Review', 'applied'] }
+    status: { $in: [APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.APPLIED] }
   });
 
   const acceptedApplications = await Application.countDocuments({
     userId: oid,
-    status: { $in: ['Shortlisted', 'Hired'] }
+    status: { $in: [APPLICATION_STATUS.SHORTLISTED, APPLICATION_STATUS.HIRED] }
   });
 
   const rejectedApplications = await Application.countDocuments({
     userId: oid,
-    status: 'Rejected'
+    status: APPLICATION_STATUS.REJECTED
   });
 
   const avgScoreResult = await Application.aggregate([
@@ -115,18 +116,12 @@ export async function getUserDashboardApplicationStats(userId) {
     avgScoreResult.length > 0 ? Math.round(avgScoreResult[0].avgScore) : 0;
 
   const applicationsByStatus = {
-    applied: await Application.countDocuments({ userId: oid, status: 'applied' }),
-    underReview: await Application.countDocuments({
-      userId: oid,
-      status: 'Under Review'
-    }),
-    shortlisted: await Application.countDocuments({
-      userId: oid,
-      status: 'Shortlisted'
-    }),
-    hired: await Application.countDocuments({ userId: oid, status: 'Hired' }),
+    applied: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.APPLIED }),
+    underReview: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.UNDER_REVIEW }),
+    shortlisted: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.SHORTLISTED }),
+    hired: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.HIRED }),
     rejected: rejectedApplications,
-    withdrawn: await Application.countDocuments({ userId: oid, status: 'withdrawn' })
+    withdrawn: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.WITHDRAWN })
   };
 
   const recentApplicationsRaw = await Application.find({ userId: oid })

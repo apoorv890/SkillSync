@@ -2,6 +2,7 @@ import ApplicationService from '../services/ApplicationService.js';
 import logger from '../utils/logger.js';
 import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js';
 import { logNested } from '../utils/loggerHelper.js';
+import { APPLICATION_STATUS } from '../utils/constants.js';
 
 class ApplicationController {
   /**
@@ -169,7 +170,12 @@ class ApplicationController {
     const { applicationId } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ['Under Review', 'Shortlisted', 'Rejected', 'Hired'];
+    const validStatuses = [
+      APPLICATION_STATUS.UNDER_REVIEW,
+      APPLICATION_STATUS.SHORTLISTED,
+      APPLICATION_STATUS.REJECTED,
+      APPLICATION_STATUS.HIRED,
+    ];
 
     if (!status || !validStatuses.includes(status)) {
       return ApiResponse.error(
@@ -187,14 +193,6 @@ class ApplicationController {
 
     application.status = status;
     await application.save();
-
-    // Store a simple activity event for phone/interview-related statuses (minimal integration for now).
-    // This is intentionally lightweight; richer analytics can come later.
-    if (['Shortlisted', 'Hired', 'Rejected'].includes(status)) {
-      setImmediate(() => {
-        // no-op placeholder for future analytics/event bus
-      });
-    }
 
     return ApiResponse.success(res, 'Application status updated successfully', {
       applicationId: application._id,
