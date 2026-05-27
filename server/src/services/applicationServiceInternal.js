@@ -84,44 +84,46 @@ async function countInterviewsScheduledForUser(userId) {
 export async function getUserDashboardApplicationStats(userId) {
   const oid = new mongoose.Types.ObjectId(String(userId));
 
-  const totalApplications = await Application.countDocuments({ userId: oid });
-
-  const activeApplications = await Application.countDocuments({
-    userId: oid,
-    status: { $in: [APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.APPLIED] }
-  });
-
-  const acceptedApplications = await Application.countDocuments({
-    userId: oid,
-    status: { $in: [APPLICATION_STATUS.SHORTLISTED, APPLICATION_STATUS.HIRED] }
-  });
-
-  const rejectedApplications = await Application.countDocuments({
-    userId: oid,
-    status: APPLICATION_STATUS.REJECTED
-  });
-
-  const avgScoreResult = await Application.aggregate([
+  // Single round-trip for all status counts + average score
+  const [facet] = await Application.aggregate([
     { $match: { userId: oid } },
-    { $match: { 'atsScore.score': { $ne: null } } },
     {
-      $group: {
-        _id: null,
-        avgScore: { $avg: '$atsScore.score' }
+      $facet: {
+        byStatus: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
+        avgScore: [
+          { $match: { 'atsScore.score': { $ne: null } } },
+          { $group: { _id: null, avg: { $avg: '$atsScore.score' } } }
+        ]
       }
     }
   ]);
 
+  const counts = Object.fromEntries(
+    (facet?.byStatus || []).map(({ _id, count }) => [_id, count])
+  );
+
+  const totalApplications = Object.values(counts).reduce((s, n) => s + n, 0);
+
+  const activeApplications =
+    (counts[APPLICATION_STATUS.UNDER_REVIEW] || 0) +
+    (counts[APPLICATION_STATUS.APPLIED] || 0);
+
+  const acceptedApplications =
+    (counts[APPLICATION_STATUS.SHORTLISTED] || 0) +
+    (counts[APPLICATION_STATUS.HIRED] || 0);
+
+  const rejectedApplications = counts[APPLICATION_STATUS.REJECTED] || 0;
+
   const averageScore =
-    avgScoreResult.length > 0 ? Math.round(avgScoreResult[0].avgScore) : 0;
+    facet?.avgScore?.length > 0 ? Math.round(facet.avgScore[0].avg) : 0;
 
   const applicationsByStatus = {
-    applied: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.APPLIED }),
-    underReview: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.UNDER_REVIEW }),
-    shortlisted: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.SHORTLISTED }),
-    hired: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.HIRED }),
-    rejected: rejectedApplications,
-    withdrawn: await Application.countDocuments({ userId: oid, status: APPLICATION_STATUS.WITHDRAWN })
+    applied:     counts[APPLICATION_STATUS.APPLIED]      || 0,
+    underReview: counts[APPLICATION_STATUS.UNDER_REVIEW] || 0,
+    shortlisted: counts[APPLICATION_STATUS.SHORTLISTED]  || 0,
+    hired:       counts[APPLICATION_STATUS.HIRED]        || 0,
+    rejected:    rejectedApplications,
+    withdrawn:   counts[APPLICATION_STATUS.WITHDRAWN]    || 0,
   };
 
   const recentApplicationsRaw = await Application.find({ userId: oid })

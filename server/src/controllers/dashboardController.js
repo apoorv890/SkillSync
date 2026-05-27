@@ -1,5 +1,7 @@
 import * as JobService from '../services/jobServiceInternal.js';
 import * as ApplicationService from '../services/applicationServiceInternal.js';
+import logger from '../utils/logger.js';
+import { ApiResponse } from '../utils/http.js';
 
 /**
  * Compact stats for the candidate user-dashboard page (legacy path).
@@ -7,7 +9,7 @@ import * as ApplicationService from '../services/applicationServiceInternal.js';
 export async function getUserStats(req, res) {
   try {
     if (req.user?.role === 'admin') {
-      return res.status(403).json({ error: 'Use /api/dashboard/stats for admin' });
+      return ApiResponse.error(res, 'Use /api/dashboard/stats for admin', 403);
     }
 
     const userId = req.userId || req.user._id;
@@ -22,8 +24,8 @@ export async function getUserStats(req, res) {
       interviewsScheduled: appStats.interviewsScheduled ?? 0
     });
   } catch (error) {
-    console.error('Error fetching user-stats:', error);
-    res.status(500).json({ error: 'Failed to fetch user statistics' });
+    logger.error('Error fetching user-stats:', error);
+    return ApiResponse.error(res, 'Failed to fetch user statistics', 500);
   }
 }
 
@@ -57,7 +59,7 @@ export async function getDashboardStats(req, res) {
     // recentApplications already has jobs attached inside getUserDashboardApplicationStats
     return res.json(appStats);
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+    logger.error('Error fetching dashboard stats:', error);
+    return ApiResponse.error(res, 'Failed to fetch dashboard statistics', 500);
   }
 }

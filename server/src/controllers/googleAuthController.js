@@ -1,6 +1,7 @@
 import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import TokenService from '../services/TokenService.js';
+import logger from '../utils/logger.js';
 
 function getGoogleClientId() {
   const id = process.env.GOOGLE_CLIENT_ID;
@@ -87,7 +88,7 @@ export async function postGoogleAuth(req, res) {
       tempToken
     });
   } catch (err) {
-    console.error('Google auth error:', err.message || err);
+    logger.error('Google auth error:', err.message || err);
     return res.status(401).json({ error: 'Invalid Google token' });
   }
 }
@@ -166,7 +167,7 @@ export async function postOnboarding(req, res) {
       user: formatUserResponse(user)
     });
   } catch (err) {
-    console.error('Onboarding error:', err);
+    logger.error('Onboarding error:', err);
     return res.status(500).json({ error: 'Could not complete onboarding' });
   }
 }
