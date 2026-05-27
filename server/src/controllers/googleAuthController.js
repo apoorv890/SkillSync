@@ -1,15 +1,6 @@
-import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import TokenService from '../services/TokenService.js';
-
-function getJWTSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET is not configured');
-  }
-  return secret;
-}
 
 function getGoogleClientId() {
   const id = process.env.GOOGLE_CLIENT_ID;
@@ -89,11 +80,7 @@ export async function postGoogleAuth(req, res) {
       });
     }
 
-    const tempToken = jwt.sign(
-      { type: 'onboarding', googleId, email, fullName, picture },
-      getJWTSecret(),
-      { expiresIn: '15m' }
-    );
+    const tempToken = TokenService.generateOnboardingToken({ googleId, email, fullName, picture });
 
     return res.status(200).json({
       needsOnboarding: true,
@@ -119,7 +106,7 @@ export async function postOnboarding(req, res) {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, getJWTSecret());
+      decoded = TokenService.verifyToken(token);
     } catch {
       return res.status(401).json({ error: 'Invalid or expired onboarding token' });
     }

@@ -65,6 +65,14 @@ class TokenService {
     };
   }
 
+  generateOnboardingToken(payload) {
+    return jwt.sign(
+      { type: 'onboarding', ...payload },
+      getJWTSecret(),
+      { expiresIn: '15m' }
+    );
+  }
+
   verifyToken(token) {
     return verifyToken(token);
   }
