@@ -46,9 +46,21 @@ class PhoneController {
       );
     }
 
+    const serviceToken = (process.env.SKILLSYNC_SERVICE_TOKEN || '').trim();
+    if (!serviceToken) {
+      return ApiResponse.error(
+        res,
+        'SKILLSYNC_SERVICE_TOKEN is not configured',
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
+    }
+
     const upstream = await fetch(`${baseUrl}/twilio/call`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceToken}`
+      },
       body: JSON.stringify({ to, applicationId: String(application._id) })
     });
 

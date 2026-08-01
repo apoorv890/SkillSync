@@ -1,3 +1,4 @@
+import Application from '../models/Application.js';
 import ApplicationService from '../services/ApplicationService.js';
 import logger from '../utils/logger.js';
 import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js';
