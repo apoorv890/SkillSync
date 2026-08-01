@@ -135,12 +135,9 @@ class ApplicationService {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Application already withdrawn');
     }
 
-    if (application.resume?.s3Key) {
-      logger.info(`Deleting resume from S3`, { s3Key: application.resume.s3Key });
-      await S3Service.deleteFile(application.resume.s3Key);
-    }
-
-    await Application.findByIdAndDelete(application._id);
+    application.status = APPLICATION_STATUS.WITHDRAWN;
+    application.withdrawnAt = new Date();
+    await application.save();
 
     logger.info(`Application withdrawn successfully`, { applicationId: application._id });
   }
@@ -254,8 +251,10 @@ class ApplicationService {
       return null;
     }
 
+    // Withdrawn applications are kept (not deleted) so createApplication can reactivate
+    // them, but the candidate should still see "Apply Now" rather than "Applied".
     return {
-      applied: true,
+      applied: application.status !== APPLICATION_STATUS.WITHDRAWN,
       status: application.status,
       appliedAt: application.appliedAt,
       withdrawnAt: application.withdrawnAt,

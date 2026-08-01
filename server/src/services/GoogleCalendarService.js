@@ -178,6 +178,24 @@ export async function scheduleInterview({
   startIst = startIst.setZone(IST);
   const endIst = startIst.plus({ hours: 1 });
 
+  // Re-check freebusy right before booking — availability may have been fetched
+  // a while ago, and another call/admin could have booked this slot since.
+  const fb = await calendar.freebusy.query({
+    requestBody: {
+      timeMin: startIst.toUTC().toISO(),
+      timeMax: endIst.toUTC().toISO(),
+      timeZone: IST,
+      items: [{ id: 'primary' }]
+    }
+  });
+  const stillBusy = fb?.data?.calendars?.primary?.busy?.length > 0;
+  if (stillBusy) {
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      'That slot was just booked. Please choose another time.'
+    );
+  }
+
   const event = await calendar.events.insert({
     calendarId: 'primary',
     requestBody: {
