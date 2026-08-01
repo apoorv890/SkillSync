@@ -17,7 +17,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f app",
     "smoke": "node scripts/smoke.mjs",
-    "seed:five-jobs": "node scripts/seedFiveJobs.mjs"
+    "seed:five-jobs": "node scripts/seedFiveJobs.mjs",
+    "check:calendar-tokens": "npm --prefix server run check:calendar-tokens"
   },
   "dependencies": {
     "concurrently": "^8.2.2"

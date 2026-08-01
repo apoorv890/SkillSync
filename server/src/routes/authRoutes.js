@@ -28,7 +28,9 @@ router.post('/logout', authenticate, async (req, res) => {
 
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password');
+    const user = await User.findById(req.userId).select(
+      '-password -googleCalendarRefreshToken'
+    );
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

@@ -11,6 +11,42 @@ import { skillsyncFetch } from './skillsyncClient.js';
 const log = createLogger('TwilioMedia');
 
 /**
+ * Gemini Live connections have a documented ~10 minute ceiling. Rather than
+ * implementing session resumption, calls are deliberately kept short: nudge
+ * the agent to wrap up partway through, then hard-close comfortably before
+ * the ceiling so a call never gets cut off mid-sentence by Google's side.
+ */
+const WRAP_UP_AFTER_MS = 5 * 60 * 1000;
+const HARD_CLOSE_AFTER_MS = 7 * 60 * 1000;
+const WRAP_UP_NUDGE_TEXT =
+  'System note (not from the candidate): call time is limited and about 2 minutes remain. ' +
+  'Begin wrapping up now — finish booking the interview if that has not happened yet, ' +
+  'briefly summarize next steps, thank the candidate, and say goodbye within the next turn or two.';
+
+/** Builds a rough speaker-labeled transcript from Gemini's input/output transcription chunks. */
+function buildTranscript(chunks) {
+  if (!chunks.length) return '';
+  const lines = [];
+  let role = null;
+  let buffer = '';
+  const flush = () => {
+    if (role && buffer.trim()) {
+      lines.push(`${role === 'candidate' ? 'Candidate' : 'Agent'}: ${buffer.trim()}`);
+    }
+  };
+  for (const chunk of chunks) {
+    if (chunk.role !== role) {
+      flush();
+      role = chunk.role;
+      buffer = '';
+    }
+    buffer += chunk.text;
+  }
+  flush();
+  return lines.join('\n');
+}
+
+/**
  * @param {import('ws').WebSocket} ws
  * @param {import('http').IncomingMessage} req
  */
@@ -27,6 +63,7 @@ export async function handleMediaStream(ws, req) {
   }
 
   let streamSid = null;
+  let callSid = null;
   /** @type {Awaited<ReturnType<typeof createLiveSession>> | null} */
   let geminiSession = null;
   let geminiReady = false;
@@ -40,11 +77,16 @@ export async function handleMediaStream(ws, req) {
   let downsampler = null;
 
   const pendingMedia = [];
+  /** @type {ReturnType<typeof setTimeout>[]} */
+  const callTimers = [];
+  /** @type {{ role: 'candidate' | 'agent', text: string }[]} */
+  const transcriptChunks = [];
 
   const closeAll = (reason) => {
     if (closed) return;
     closed = true;
     log.log(`Closing call session: ${reason}`);
+    for (const timer of callTimers) clearTimeout(timer);
     try {
       geminiSession?.close();
     } catch (err) {
@@ -54,6 +96,27 @@ export async function handleMediaStream(ws, req) {
       if (ws.readyState === 1) ws.close();
     } catch (err) {
       log.error('Error closing Twilio WebSocket', err);
+    }
+    void finalizeCallSession(reason);
+  };
+
+  /** Best-effort: mark the SkillSync CallSession ended with a coarse outcome + rough transcript. */
+  const finalizeCallSession = async (reason) => {
+    if (!callSid) return;
+    try {
+      const status = /error|failed/i.test(reason) ? 'failed' : 'completed';
+      const transcript = buildTranscript(transcriptChunks);
+      await skillsyncFetch(`/api/phone-agent/calls/${encodeURIComponent(callSid)}/end`, {
+        method: 'POST',
+        body: JSON.stringify({
+          outcome: reason,
+          status,
+          ...(transcript ? { transcript } : {}),
+        }),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn(`Could not finalize CallSession for callSid=${callSid}: ${msg}`);
     }
   };
 
@@ -93,6 +156,15 @@ export async function handleMediaStream(ws, req) {
 
     if (serverContent?.interrupted) {
       sendClearToTwilio();
+    }
+
+    const candidateText = serverContent?.inputTranscription?.text;
+    if (typeof candidateText === 'string' && candidateText) {
+      transcriptChunks.push({ role: 'candidate', text: candidateText });
+    }
+    const agentText = serverContent?.outputTranscription?.text;
+    if (typeof agentText === 'string' && agentText) {
+      transcriptChunks.push({ role: 'agent', text: agentText });
     }
 
     const parts = serverContent?.modelTurn?.parts ?? [];
@@ -182,7 +254,7 @@ export async function handleMediaStream(ws, req) {
   /**
    * Start Gemini only after Twilio `start` so we have `callSid` to resolve applicationId from SkillSync CallSession.
    */
-  const ensureGeminiStarted = async (callSid) => {
+  const ensureGeminiStarted = async () => {
     if (geminiSession || geminiStarting || closed) return;
     geminiStarting = true;
     try {
@@ -221,6 +293,38 @@ export async function handleMediaStream(ws, req) {
 
       geminiReady = true;
       geminiStarting = false;
+
+      if (callSid) {
+        skillsyncFetch(`/api/phone-agent/calls/${encodeURIComponent(callSid)}/start`, {
+          method: 'POST',
+          body: JSON.stringify({ applicationId: appId || undefined }),
+        }).catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          log.warn(`Could not mark CallSession in-progress for callSid=${callSid}: ${msg}`);
+        });
+      }
+
+      callTimers.push(
+        setTimeout(() => {
+          if (closed || !geminiSession) return;
+          try {
+            geminiSession.sendClientContent({
+              turns: [{ role: 'user', parts: [{ text: WRAP_UP_NUDGE_TEXT }] }],
+              turnComplete: true,
+            });
+            log.log('Sent wrap-up nudge to Gemini');
+          } catch (err) {
+            log.error('Failed to send wrap-up nudge', err);
+          }
+        }, WRAP_UP_AFTER_MS),
+      );
+      callTimers.push(
+        setTimeout(() => {
+          log.log('Call duration limit reached; closing call');
+          closeAll('call duration limit reached');
+        }, HARD_CLOSE_AFTER_MS),
+      );
+
       await drainPendingMedia();
     } catch (err) {
       geminiStarting = false;
@@ -247,11 +351,11 @@ export async function handleMediaStream(ws, req) {
 
         case 'start': {
           streamSid = message.start?.streamSid ?? message.streamSid ?? null;
-          const callSid = message.start?.callSid ?? null;
+          callSid = message.start?.callSid ?? null;
           log.log(
             `Twilio stream started, streamSid=${streamSid} callSid=${callSid}`,
           );
-          void ensureGeminiStarted(callSid);
+          void ensureGeminiStarted();
           break;
         }
 

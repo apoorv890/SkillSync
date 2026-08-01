@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { SectionCards } from './section-cards'
 import { AnalyticsChart } from './analytics-chart'
+import { CalendarConnectCard } from './calendar-connect-card'
 import { useDashboardRefresh } from '../../context/DashboardContext'
 import { useApi } from '../../lib/api'
 import { Button } from '../ui/button'
@@ -74,6 +75,9 @@ export function DashboardPage() {
           </Button>
         </div>
         <SectionCards stats={stats} />
+        <div className="px-4 lg:px-6">
+          <CalendarConnectCard />
+        </div>
         <div className="px-4 lg:px-6">
           <AnalyticsChart />
         </div>

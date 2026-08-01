@@ -7,7 +7,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "check:calendar-tokens": "node scripts/checkCalendarTokens.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.922.0",
