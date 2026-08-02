@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { GoogleGenAI, Modality, FunctionCallingConfigMode } from '@google/genai';
 import { createLogger } from './logger.js';
-import { getSkillsyncConfig, skillsyncFetch } from './skillsyncClient.js';
+import { getVoicehireConfig, voicehireFetch } from './voicehireClient.js';
 
 const log = createLogger('Gemini');
 
@@ -71,7 +71,7 @@ const toolDeclarations = [
       properties: {
         applicationId: {
           type: 'string',
-          description: 'SkillSync application id (optional if already provided for this call)',
+          description: 'VoiceHire application id (optional if already provided for this call)',
         },
       },
       required: [],
@@ -87,7 +87,7 @@ const toolDeclarations = [
         week: { type: 'string', enum: ['auto', 'next'], default: 'auto' },
         applicationId: {
           type: 'string',
-          description: 'SkillSync application id (optional if call metadata already includes it)',
+          description: 'VoiceHire application id (optional if call metadata already includes it)',
         },
       },
       required: [],
@@ -103,7 +103,7 @@ const toolDeclarations = [
         applicationId: {
           type: 'string',
           description:
-            'SkillSync application id (optional if call metadata already includes it)',
+            'VoiceHire application id (optional if call metadata already includes it)',
         },
         slotStartIso: {
           type: 'string',
@@ -126,13 +126,13 @@ const toolDeclarations = [
 export async function createLiveSession(callbacks) {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-  const { baseUrl, token } = getSkillsyncConfig();
+  const { baseUrl, token } = getVoicehireConfig();
   if (!token) {
     log.warn(
-      'SKILLSYNC_SERVICE_TOKEN not set — calendar/context SkillSync calls will fail until it is added to repo root .env'
+      'VOICEHIRE_SERVICE_TOKEN not set — calendar/context VoiceHire calls will fail until it is added to repo root .env'
     );
   } else {
-    log.log(`SkillSync API base=${baseUrl} (token configured)`);
+    log.log(`VoiceHire API base=${baseUrl} (token configured)`);
   }
 
   const session = await ai.live.connect({
@@ -173,7 +173,7 @@ export async function createLiveSession(callbacks) {
                 try {
                   log.log(`Tool call ${name} args=${JSON.stringify(args)}`);
                   if (name === 'getCurrentTimeIst') {
-                    const data = await skillsyncFetch(`/api/phone-agent/time`, {
+                    const data = await voicehireFetch(`/api/phone-agent/time`, {
                       method: 'GET',
                     });
                     responses.push({
@@ -189,7 +189,7 @@ export async function createLiveSession(callbacks) {
                         'Missing applicationId — call metadata did not include one; cannot load context.',
                       );
                     }
-                    const data = await skillsyncFetch(
+                    const data = await voicehireFetch(
                       `/api/phone-agent/applications/${encodeURIComponent(appId)}/context`,
                       { method: 'GET' },
                     );
@@ -202,7 +202,7 @@ export async function createLiveSession(callbacks) {
                         'Missing applicationId — call metadata did not include one; cannot check availability for this job.',
                       );
                     }
-                    const data = await skillsyncFetch(
+                    const data = await voicehireFetch(
                       `/api/phone-agent/calendar/availability?week=${encodeURIComponent(week)}&applicationId=${encodeURIComponent(appId)}`,
                       { method: 'GET' },
                     );
@@ -211,7 +211,7 @@ export async function createLiveSession(callbacks) {
                     const applicationId = args.applicationId || callbacks.applicationId;
                     if (!applicationId || typeof applicationId !== 'string') {
                       throw new Error(
-                        'Missing applicationId — this call is not linked to a SkillSync application.',
+                        'Missing applicationId — this call is not linked to a VoiceHire application.',
                       );
                     }
                     const slotStartIso =
@@ -219,7 +219,7 @@ export async function createLiveSession(callbacks) {
                       args.startIso ||
                       args.slotStartISO ||
                       args.startISO;
-                    const data = await skillsyncFetch(`/api/phone-agent/calendar/schedule`, {
+                    const data = await voicehireFetch(`/api/phone-agent/calendar/schedule`, {
                       method: 'POST',
                       body: JSON.stringify({
                         applicationId,

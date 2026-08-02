@@ -33,7 +33,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3010"
-      SKILLSYNC_API_BASE_URL: http://app:5000
+      VOICEHIRE_API_BASE_URL: http://app:5000
       NGROK_API_URL: http://ngrok:4040
     ports:
       - "3010:3010"

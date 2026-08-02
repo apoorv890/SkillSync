@@ -2,11 +2,11 @@ import { ApiResponse, HTTP_STATUS } from '../utils/http.js';
 import { timingSafeEqual } from '../utils/timingSafe.js';
 
 export function requirePhoneAgent(req, res, next) {
-  const expected = (process.env.SKILLSYNC_SERVICE_TOKEN || '').trim();
+  const expected = (process.env.VOICEHIRE_SERVICE_TOKEN || '').trim();
   if (!expected) {
     return ApiResponse.error(
       res,
-      'SKILLSYNC_SERVICE_TOKEN is not configured',
+      'VOICEHIRE_SERVICE_TOKEN is not configured',
       HTTP_STATUS.INTERNAL_SERVER_ERROR
     );
   }

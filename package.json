@@ -1,8 +1,8 @@
 {
-  "name": "skillsync",
+  "name": "voicehire",
   "private": true,
   "version": "1.0.0",
-  "description": "SkillSync - AI-powered recruitment platform",
+  "description": "VoiceHire - AI-powered recruitment platform",
   "scripts": {
     "install:all": "npm install && npm --prefix client install && npm --prefix server install",
     "dev:client": "npm --prefix client run dev",

@@ -46,11 +46,11 @@ class PhoneController {
       );
     }
 
-    const serviceToken = (process.env.SKILLSYNC_SERVICE_TOKEN || '').trim();
+    const serviceToken = (process.env.VOICEHIRE_SERVICE_TOKEN || '').trim();
     if (!serviceToken) {
       return ApiResponse.error(
         res,
-        'SKILLSYNC_SERVICE_TOKEN is not configured',
+        'VOICEHIRE_SERVICE_TOKEN is not configured',
         HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
     }

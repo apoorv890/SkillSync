@@ -1,7 +1,7 @@
 import express from 'express';
 import Twilio from 'twilio';
 import { createLogger } from './logger.js';
-import { requireSkillsyncAuth } from './requireSkillsyncAuth.js';
+import { requireVoicehireAuth } from './requireVoicehireAuth.js';
 import {
   getPublicBaseUrlFromRequest,
   resolvePublicBaseUrl,
@@ -45,7 +45,7 @@ export function createTwilioRouter(config) {
 
   router.use(express.json());
 
-  router.post('/call', requireSkillsyncAuth, async (req, res) => {
+  router.post('/call', requireVoicehireAuth, async (req, res) => {
     try {
       const to =
         typeof req.body?.to === 'string' && req.body.to.trim()

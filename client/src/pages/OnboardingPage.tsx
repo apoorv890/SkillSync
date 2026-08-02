@@ -38,7 +38,7 @@ const OnboardingPage = () => {
           <div className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-md">
             <Briefcase className="h-5 w-5" />
           </div>
-          <span className="text-xl font-bold">SkillSync</span>
+          <span className="text-xl font-bold">VoiceHire</span>
         </a>
         <OnboardingForm tempToken={token} />
       </div>

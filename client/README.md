@@ -1,6 +1,6 @@
-# SkillSync Client
+# VoiceHire Client
 
-Frontend application for SkillSync - an AI-powered recruitment platform built with React and Vite.
+Frontend application for VoiceHire - an AI-powered recruitment platform built with React and Vite.
 
 ## 🚀 Tech Stack
 

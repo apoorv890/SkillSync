@@ -69,7 +69,7 @@ export function OnboardingForm({ tempToken }: { tempToken: string }) {
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
       setIsAuthenticated(true);
-      toast.success('Profile saved. Welcome to SkillSync!');
+      toast.success('Profile saved. Welcome to VoiceHire!');
       navigate('/', { replace: true });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Could not save profile');
@@ -83,7 +83,7 @@ export function OnboardingForm({ tempToken }: { tempToken: string }) {
       <CardHeader className="text-center">
         <CardTitle className="text-xl">Tell us about you</CardTitle>
         <CardDescription>
-          Choose how you use SkillSync. You can tighten this with invite codes later for production.
+          Choose how you use VoiceHire. You can tighten this with invite codes later for production.
         </CardDescription>
       </CardHeader>
       <CardContent>

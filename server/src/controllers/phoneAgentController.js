@@ -80,7 +80,7 @@ class PhoneAgentController {
 
   /**
    * GET /api/phone-agent/calls/:callSid/application-context
-   * Resolves application + job/candidate context from the CallSession row written when SkillSync initiates the outbound call.
+   * Resolves application + job/candidate context from the CallSession row written when VoiceHire initiates the outbound call.
    */
   getApplicationContextByCallSid = catchAsync(async (req, res) => {
     const callSid =
@@ -93,7 +93,7 @@ class PhoneAgentController {
     if (!link?.applicationId) {
       throw new ApiError(
         HTTP_STATUS.NOT_FOUND,
-        'No application linked to this call. Place outbound calls via SkillSync (includes applicationId), or pass applicationId on the Twilio voice/stream URL.'
+        'No application linked to this call. Place outbound calls via VoiceHire (includes applicationId), or pass applicationId on the Twilio voice/stream URL.'
       );
     }
 

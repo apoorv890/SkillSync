@@ -112,7 +112,7 @@ app.use(attachLogPrefix);
 app.get('/health', (_req, res) => {
   res.json({
     status: 'OK',
-    service: 'skillsync-server',
+    service: 'voicehire-server',
     timestamp: new Date().toISOString()
   });
 });

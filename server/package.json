@@ -1,8 +1,8 @@
 {
-  "name": "skillsync-server",
+  "name": "voicehire-server",
   "private": true,
   "version": "1.0.0",
-  "description": "SkillSync monolith server (Express)",
+  "description": "VoiceHire monolith server (Express)",
   "type": "module",
   "main": "src/server.js",
   "scripts": {

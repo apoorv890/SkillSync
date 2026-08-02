@@ -60,7 +60,7 @@ class CalendarController {
         <h3>Google sign-in was not completed</h3>
         <p><strong>${escapeHtml(oauthErr)}</strong></p>
         ${oauthDesc ? `<p>${escapeHtml(oauthDesc)}</p>` : ''}
-        <p>Close this tab and try connecting again from SkillSync.</p>
+        <p>Close this tab and try connecting again from VoiceHire.</p>
         </body></html>`
       );
     }
@@ -72,7 +72,7 @@ class CalendarController {
         <h3>This page is only used after Google redirects back</h3>
         <p>Do not open this URL directly. Instead:</p>
         <ol>
-          <li>Sign in as <strong>admin</strong> in SkillSync.</li>
+          <li>Sign in as <strong>admin</strong> in VoiceHire.</li>
           <li>Call <code>GET /api/calendar/auth-url</code> with your Bearer token (or use the app flow).</li>
           <li>Open the <strong>url</strong> from that response in the browser — Google will redirect here with a <code>code</code>.</li>
         </ol>
@@ -129,7 +129,7 @@ class CalendarController {
     const candidateName = user?.fullName || application.candidateInfo?.name || null;
     const title = job?.title
       ? `Interview: ${job.title}${candidateName ? ` — ${candidateName}` : ''}`
-      : 'SkillSync Interview';
+      : 'VoiceHire Interview';
     const description = `Application: ${String(application._id)}`;
 
     let event;
