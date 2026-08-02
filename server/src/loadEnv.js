@@ -8,6 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 if (!process.env.SERVICE_NAME) {
-  process.env.SERVICE_NAME = 'SkillSync-server';
+  process.env.SERVICE_NAME = 'VoiceHire-server';
 }
 

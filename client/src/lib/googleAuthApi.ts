@@ -1,7 +1,7 @@
 import type { User } from '../types';
 
 /** sessionStorage key for short-lived onboarding JWT after Google sign-in */
-export const ONBOARDING_STORAGE_KEY = 'skillsync_onboarding_token';
+export const ONBOARDING_STORAGE_KEY = 'voicehire_onboarding_token';
 
 export type GoogleAuthResult =
   | { needsOnboarding: true; tempToken: string }

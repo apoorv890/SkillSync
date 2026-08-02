@@ -50,7 +50,7 @@ export function UserSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) 
                   <Briefcase className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">SkillSync</span>
+                  <span className="truncate font-semibold">VoiceHire</span>
                   <span className="truncate text-xs">Candidate Platform</span>
                 </div>
               </Link>

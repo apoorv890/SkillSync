@@ -218,7 +218,7 @@ export async function scheduleInterview({
   const event = await calendar.events.insert({
     calendarId: 'primary',
     requestBody: {
-      summary: title || 'SkillSync Interview',
+      summary: title || 'VoiceHire Interview',
       description: description || '',
       start: { dateTime: startIst.toISO(), timeZone: IST },
       end: { dateTime: endIst.toISO(), timeZone: IST },

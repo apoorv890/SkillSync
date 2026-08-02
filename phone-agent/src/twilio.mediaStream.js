@@ -6,7 +6,7 @@ import {
 } from './audio.pipeline.js';
 import { createLiveSession } from './gemini.liveSession.js';
 import { createLogger } from './logger.js';
-import { skillsyncFetch } from './skillsyncClient.js';
+import { voicehireFetch } from './voicehireClient.js';
 
 const log = createLogger('TwilioMedia');
 
@@ -100,13 +100,13 @@ export async function handleMediaStream(ws, req) {
     void finalizeCallSession(reason);
   };
 
-  /** Best-effort: mark the SkillSync CallSession ended with a coarse outcome + rough transcript. */
+  /** Best-effort: mark the VoiceHire CallSession ended with a coarse outcome + rough transcript. */
   const finalizeCallSession = async (reason) => {
     if (!callSid) return;
     try {
       const status = /error|failed/i.test(reason) ? 'failed' : 'completed';
       const transcript = buildTranscript(transcriptChunks);
-      await skillsyncFetch(`/api/phone-agent/calls/${encodeURIComponent(callSid)}/end`, {
+      await voicehireFetch(`/api/phone-agent/calls/${encodeURIComponent(callSid)}/end`, {
         method: 'POST',
         body: JSON.stringify({
           outcome: reason,
@@ -252,7 +252,7 @@ export async function handleMediaStream(ws, req) {
   };
 
   /**
-   * Start Gemini only after Twilio `start` so we have `callSid` to resolve applicationId from SkillSync CallSession.
+   * Start Gemini only after Twilio `start` so we have `callSid` to resolve applicationId from VoiceHire CallSession.
    */
   const ensureGeminiStarted = async () => {
     if (geminiSession || geminiStarting || closed) return;
@@ -261,14 +261,14 @@ export async function handleMediaStream(ws, req) {
       let appId = applicationIdFromUrl;
       if (!appId && callSid) {
         try {
-          const ctx = await skillsyncFetch(
+          const ctx = await voicehireFetch(
             `/api/phone-agent/calls/${encodeURIComponent(callSid)}/application-context`,
             { method: 'GET' },
           );
           appId = typeof ctx?.applicationId === 'string' ? ctx.applicationId : null;
           if (appId) {
             log.log(
-              `Resolved applicationId from SkillSync CallSession (callSid=${callSid})`,
+              `Resolved applicationId from VoiceHire CallSession (callSid=${callSid})`,
             );
           }
         } catch (err) {
@@ -295,7 +295,7 @@ export async function handleMediaStream(ws, req) {
       geminiStarting = false;
 
       if (callSid) {
-        skillsyncFetch(`/api/phone-agent/calls/${encodeURIComponent(callSid)}/start`, {
+        voicehireFetch(`/api/phone-agent/calls/${encodeURIComponent(callSid)}/start`, {
           method: 'POST',
           body: JSON.stringify({ applicationId: appId || undefined }),
         }).catch((err) => {

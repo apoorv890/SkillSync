@@ -33,7 +33,7 @@ export function AuthSplitScreen({ mode }: AuthSplitScreenProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
               <Briefcase className="h-5 w-5" />
             </div>
-            <span className="text-xl font-bold">SkillSync</span>
+            <span className="text-xl font-bold">VoiceHire</span>
           </a>
 
           <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">

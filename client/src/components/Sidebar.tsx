@@ -46,7 +46,7 @@ const Sidebar = ({ darkMode, toggleDarkMode }) => {
           <Briefcase className="h-6 w-6 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-primary">SkillSync</h1>
+          <h1 className="text-xl font-bold text-primary">VoiceHire</h1>
           <p className="text-xs text-muted-foreground">Recruitment Platform</p>
         </div>
       </div>

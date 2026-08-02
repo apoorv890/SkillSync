@@ -8,8 +8,8 @@ const start = async () => {
   try {
     await connectDB();
     app.listen(PORT, () => {
-      logger.info(`SkillSync server listening on port ${PORT}`);
-      console.log(`SkillSync server running on port ${PORT}`);
+      logger.info(`VoiceHire server listening on port ${PORT}`);
+      console.log(`VoiceHire server running on port ${PORT}`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

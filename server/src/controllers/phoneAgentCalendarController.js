@@ -96,7 +96,7 @@ class PhoneAgentCalendarController {
 
   /**
    * GET /api/phone-agent/calendar/availability?week=auto|next&applicationId=...
-   * Called by phone-agent with SKILLSYNC_SERVICE_TOKEN (not user JWT).
+   * Called by phone-agent with VOICEHIRE_SERVICE_TOKEN (not user JWT).
    * applicationId is required — availability is always for a specific job's
    * assigned recruiter, not a global calendar.
    */
@@ -145,7 +145,7 @@ class PhoneAgentCalendarController {
     const candidateName = user?.fullName || application.candidateInfo?.name || null;
     const title = job?.title
       ? `Interview: ${job.title}${candidateName ? ` — ${candidateName}` : ''}`
-      : 'SkillSync Interview';
+      : 'VoiceHire Interview';
     const description = `Application: ${String(application._id)}`;
 
     let event;

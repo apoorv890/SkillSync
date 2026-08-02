@@ -5,7 +5,7 @@ const consoleFormat = winston.format.printf(({ level, message, timestamp }) => {
   return `${timestamp} [${level}] ${message}`;
 });
 
-const serviceName = process.env.SERVICE_NAME || 'SkillSync-backend';
+const serviceName = process.env.SERVICE_NAME || 'VoiceHire-backend';
 const logsDir = path.join(process.cwd(), 'logs');
 
 const logger = winston.createLogger({
