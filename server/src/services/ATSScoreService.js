@@ -166,7 +166,7 @@ MATCH_SUMMARY: Strong technical skills and relevant experience, meets most requi
   stripMarkdownFences(text) {
     let t = text.trim();
     if (t.startsWith('```')) {
-      t = t.replace(/^```[a-zA-Z0-9_-]*\\s*/m, '').replace(/\\s*```$/m, '');
+      t = t.replace(/^```[a-zA-Z0-9_-]*\s*/m, '').replace(/\s*```$/m, '');
     }
     return t.trim();
   }
@@ -176,11 +176,11 @@ MATCH_SUMMARY: Strong technical skills and relevant experience, meets most requi
       const breakdown = {};
       let matchSummary = '';
 
-      const skillsMatch = response.match(/SKILLS:\\s*(\\d+)/i);
-      const experienceMatch = response.match(/EXPERIENCE:\\s*(\\d+)/i);
-      const educationMatch = response.match(/EDUCATION:\\s*(\\d+)/i);
-      const keywordsMatch = response.match(/KEYWORDS:\\s*(\\d+)/i);
-      const summaryMatch = response.match(/MATCH_SUMMARY:\\s*(.+)/i);
+      const skillsMatch = response.match(/SKILLS:\s*(\d+)/i);
+      const experienceMatch = response.match(/EXPERIENCE:\s*(\d+)/i);
+      const educationMatch = response.match(/EDUCATION:\s*(\d+)/i);
+      const keywordsMatch = response.match(/KEYWORDS:\s*(\d+)/i);
+      const summaryMatch = response.match(/MATCH_SUMMARY:\s*(.+)/i);
 
       if (!skillsMatch || !experienceMatch || !educationMatch || !keywordsMatch) {
         throw new Error('Missing category scores in AI response');
@@ -205,7 +205,7 @@ MATCH_SUMMARY: Strong technical skills and relevant experience, meets most requi
         error: error.message
       });
 
-      const match = response.match(/\\d+/);
+      const match = response.match(/\d+/);
       if (!match) {
         throw new Error('No numerical score found in AI response');
       }

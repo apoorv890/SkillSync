@@ -80,7 +80,7 @@ const applicationSchema = new mongoose.Schema({
       'Rejected',
       'Hired'
     ],
-    default: 'Under Review'
+    default: 'applied'
   },
   appliedAt: {
     type: Date,

@@ -7,9 +7,13 @@ import {
   getCalendarAuthUrl,
   exchangeCalendarCodeAndStore,
   getAvailableSlots,
-  scheduleInterview
+  scheduleInterview,
+  isGoogleAuthError
 } from '../services/GoogleCalendarService.js';
 import { sanitizeObjectId } from '../utils/querySanitizer.js';
+
+const CALENDAR_RECONNECT_MESSAGE =
+  'Your Google Calendar connection is no longer valid. Please reconnect it from the dashboard (Connect/Reconnect Calendar) and try again.';
 
 function getJwtSecret() {
   const secret = (process.env.JWT_SECRET || '').trim();
@@ -91,7 +95,17 @@ class CalendarController {
 
   availability = catchAsync(async (req, res) => {
     const week = req.query?.week === 'next' ? 'next' : 'auto';
-    const data = await getAvailableSlots({ adminUserId: String(req.userId), week });
+
+    let data;
+    try {
+      data = await getAvailableSlots({ adminUserId: String(req.userId), week });
+    } catch (error) {
+      if (isGoogleAuthError(error)) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, CALENDAR_RECONNECT_MESSAGE);
+      }
+      throw error;
+    }
+
     return ApiResponse.success(res, 'Availability retrieved', data);
   });
 
@@ -118,14 +132,22 @@ class CalendarController {
       : 'SkillSync Interview';
     const description = `Application: ${String(application._id)}`;
 
-    const event = await scheduleInterview({
-      adminUserId: String(req.userId),
-      slotStartIso: slotStartIso.trim(),
-      candidateEmail,
-      candidateName,
-      title,
-      description
-    });
+    let event;
+    try {
+      event = await scheduleInterview({
+        adminUserId: String(req.userId),
+        slotStartIso: slotStartIso.trim(),
+        candidateEmail,
+        candidateName,
+        title,
+        description
+      });
+    } catch (error) {
+      if (isGoogleAuthError(error)) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, CALENDAR_RECONNECT_MESSAGE);
+      }
+      throw error;
+    }
 
     return ApiResponse.success(res, 'Interview scheduled', event, HTTP_STATUS.CREATED);
   });

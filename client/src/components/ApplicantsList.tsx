@@ -13,7 +13,7 @@ import {
 } from './ui/table';
 import { ApplicationStatusDropdown } from './ApplicationStatusDropdown';
 import { toast } from 'sonner';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../lib/api';
 
 type ApplicantRow = {
   _id: string;

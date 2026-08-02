@@ -68,6 +68,25 @@ async function getAuthorizedCalendarClient(adminUserId) {
   return { calendar, oauth };
 }
 
+/**
+ * True if `error` looks like a Google OAuth failure (expired/revoked refresh
+ * token, bad client credentials) rather than some other Calendar API problem
+ * (network issue, bad request, real quota limit, etc). Callers use this to
+ * turn a raw provider error like "invalid_grant" into a clear, audience-
+ * appropriate message instead of leaking Google's own error text.
+ */
+export function isGoogleAuthError(error) {
+  const msg = String(error?.message || '').toLowerCase();
+  const providerCode = error?.response?.data?.error;
+  return (
+    msg.includes('invalid_grant') ||
+    msg.includes('invalid_token') ||
+    msg.includes('invalid_client') ||
+    providerCode === 'invalid_grant' ||
+    providerCode === 'invalid_client'
+  );
+}
+
 function getWorkWeekWindow({ week = 'auto' }) {
   const now = DateTime.now().setZone(IST);
   let start = now.startOf('day');
@@ -177,6 +196,24 @@ export async function scheduleInterview({
   }
   startIst = startIst.setZone(IST);
   const endIst = startIst.plus({ hours: 1 });
+
+  // Re-check freebusy right before booking — availability may have been fetched
+  // a while ago, and another call/admin could have booked this slot since.
+  const fb = await calendar.freebusy.query({
+    requestBody: {
+      timeMin: startIst.toUTC().toISO(),
+      timeMax: endIst.toUTC().toISO(),
+      timeZone: IST,
+      items: [{ id: 'primary' }]
+    }
+  });
+  const stillBusy = fb?.data?.calendars?.primary?.busy?.length > 0;
+  if (stillBusy) {
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      'That slot was just booked. Please choose another time.'
+    );
+  }
 
   const event = await calendar.events.insert({
     calendarId: 'primary',

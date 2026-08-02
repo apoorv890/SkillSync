@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
-import { useDashboardRefresh } from '../contexts/DashboardContext';
+import { useDashboardRefresh } from '../context/DashboardContext';
 
 const ApplyModal = ({ jobId, jobTitle, onClose, onSuccess }) => {
   const { triggerDashboardRefresh } = useDashboardRefresh();

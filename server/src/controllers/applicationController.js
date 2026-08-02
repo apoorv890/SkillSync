@@ -1,8 +1,9 @@
-import ApplicationService from '../services/ApplicationService.js';
 import Application from '../models/Application.js';
+import ApplicationService from '../services/ApplicationService.js';
 import logger from '../utils/logger.js';
 import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js';
 import { logNested } from '../utils/loggerHelper.js';
+import { APPLICATION_STATUS } from '../utils/constants.js';
 
 class ApplicationController {
   /**
@@ -65,16 +66,7 @@ class ApplicationController {
 
     logger.info('Withdrawal requested', { candidateId, jobId });
 
-    // Find application first
-    const status = await ApplicationService.getApplicationStatus(candidateId, jobId);
-
-    if (!status || !status.applied) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
-    }
-
-    const application = await Application.findOne({ userId: candidateId, jobId });
-
-    await ApplicationService.withdrawApplication(application._id, candidateId);
+    await ApplicationService.withdrawApplication(candidateId, jobId);
 
     return ApiResponse.success(res, 'Application withdrawn successfully');
   });
@@ -179,7 +171,12 @@ class ApplicationController {
     const { applicationId } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ['Under Review', 'Shortlisted', 'Rejected', 'Hired'];
+    const validStatuses = [
+      APPLICATION_STATUS.UNDER_REVIEW,
+      APPLICATION_STATUS.SHORTLISTED,
+      APPLICATION_STATUS.REJECTED,
+      APPLICATION_STATUS.HIRED,
+    ];
 
     if (!status || !validStatuses.includes(status)) {
       return ApiResponse.error(
@@ -197,14 +194,6 @@ class ApplicationController {
 
     application.status = status;
     await application.save();
-
-    // Store a simple activity event for phone/interview-related statuses (minimal integration for now).
-    // This is intentionally lightweight; richer analytics can come later.
-    if (['Shortlisted', 'Hired', 'Rejected'].includes(status)) {
-      setImmediate(() => {
-        // no-op placeholder for future analytics/event bus
-      });
-    }
 
     return ApiResponse.success(res, 'Application status updated successfully', {
       applicationId: application._id,

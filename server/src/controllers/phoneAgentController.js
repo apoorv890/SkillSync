@@ -121,6 +121,69 @@ class PhoneAgentController {
     });
   });
 
+  /**
+   * POST /api/phone-agent/calls/:callSid/start
+   * Marks a CallSession in-progress once the phone-agent's Gemini Live session
+   * is actually up (upserts by callSid — covers calls that never went through
+   * PhoneController.callCandidate's pre-created CallSession row).
+   */
+  markCallStarted = catchAsync(async (req, res) => {
+    const callSid =
+      typeof req.params.callSid === 'string' ? req.params.callSid.trim() : '';
+    if (!callSid) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid callSid');
+    }
+
+    const { applicationId } = req.body || {};
+    const sanitizedAppId = sanitizeObjectId(applicationId);
+
+    const session = await CallSession.findOneAndUpdate(
+      { callSid },
+      {
+        $setOnInsert: { callSid, startedAt: new Date() },
+        $set: {
+          status: 'in-progress',
+          ...(sanitizedAppId ? { applicationId: sanitizedAppId } : {})
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    return ApiResponse.success(res, 'Call marked in-progress', { sessionId: session._id });
+  });
+
+  /**
+   * POST /api/phone-agent/calls/:callSid/end
+   * Body: { status?: 'completed'|'failed', outcome?: string, transcript?: string }
+   * Marks a CallSession ended (upserts by callSid, same reasoning as markCallStarted).
+   */
+  markCallEnded = catchAsync(async (req, res) => {
+    const callSid =
+      typeof req.params.callSid === 'string' ? req.params.callSid.trim() : '';
+    if (!callSid) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid callSid');
+    }
+
+    const { status, outcome, transcript } = req.body || {};
+    const finalStatus = status === 'failed' ? 'failed' : 'completed';
+
+    const session = await CallSession.findOneAndUpdate(
+      { callSid },
+      {
+        $setOnInsert: { callSid, startedAt: new Date() },
+        $set: {
+          status: finalStatus,
+          endedAt: new Date(),
+          ...(typeof outcome === 'string' && outcome ? { outcome } : {}),
+          ...(typeof transcript === 'string' && transcript ? { transcript } : {})
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    return ApiResponse.success(res, 'Call marked ended', { sessionId: session._id });
+  });
+
   postEvent = catchAsync(async (req, res) => {
     const sessionId = sanitizeObjectId(req.params.id);
     if (!sessionId) {

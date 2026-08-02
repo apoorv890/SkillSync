@@ -2,8 +2,8 @@ import { useState, useMemo } from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { Card, CardContent } from "../ui/card"
 import { ChartTooltip } from "../ui/chart"
-import { useDashboardRefresh } from "../../contexts/DashboardContext"
-import { useApi } from "../../hooks/useApi"
+import { useDashboardRefresh } from "../../context/DashboardContext"
+import { useApi } from "../../lib/api"
 import { cn } from "../../lib/utils"
 
 interface AnalyticsData {

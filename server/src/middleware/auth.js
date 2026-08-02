@@ -48,11 +48,4 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Middleware to check if user is authenticated (admin or user)
-export const requireAuth = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  next();
-};
 

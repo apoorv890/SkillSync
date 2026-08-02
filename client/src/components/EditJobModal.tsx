@@ -21,8 +21,8 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { toast } from 'sonner';
-import { useDashboardRefresh } from '../contexts/DashboardContext';
-import { apiClient } from '../lib/apiClient';
+import { useDashboardRefresh } from '../context/DashboardContext';
+import { apiClient } from '../lib/api';
 
 const EditJobModal = ({ job, open, onClose, onSuccess }) => {
   const { triggerRefresh } = useDashboardRefresh();

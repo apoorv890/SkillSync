@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
-import { DashboardProvider } from './contexts/DashboardContext';
+import { DashboardProvider } from './context/DashboardContext';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/sonner';
 import type { ProtectedRouteProps } from './types';
@@ -41,6 +41,10 @@ const AppRoutes = () => {
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
+  const Layout = isAdmin ? DashboardLayout : UserLayout;
+  const forRole = (adminEl: ReactNode, userEl: ReactNode) =>
+    isAdmin ? adminEl : userEl;
+
   if (isAuthenticated && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -59,103 +63,46 @@ const AppRoutes = () => {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
 
-      {isAuthenticated && isAdmin ? (
-        <>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute adminOnly={true}>
-                <DashboardLayout>
-                  <DashboardPage />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/jobs"
-            element={
-              <ProtectedRoute adminOnly={true}>
-                <DashboardLayout>
-                  <JobsList />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-job"
-            element={
-              <ProtectedRoute adminOnly={true}>
-                <DashboardLayout>
-                  <CreateJob />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/jobs/:id"
-            element={
-              <ProtectedRoute adminOnly={true}>
-                <DashboardLayout>
-                  <JobDetails />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute adminOnly={true}>
-                <DashboardLayout>
-                  <ProfilePage />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-        </>
-      ) : (
-        <>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <UserLayout>
-                  <UserDashboard />
-                </UserLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/jobs"
-            element={
-              <ProtectedRoute>
-                <UserLayout>
-                  <JobsList />
-                </UserLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/jobs/:id"
-            element={
-              <ProtectedRoute>
-                <UserLayout>
-                  <JobDetails />
-                </UserLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <UserLayout>
-                  <ProfilePage />
-                </UserLayout>
-              </ProtectedRoute>
-            }
-          />
-        </>
-      )}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Layout>{forRole(<DashboardPage />, <UserDashboard />)}</Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/jobs"
+        element={
+          <ProtectedRoute>
+            <Layout><JobsList /></Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/create-job"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <DashboardLayout><CreateJob /></DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/jobs/:id"
+        element={
+          <ProtectedRoute>
+            <Layout><JobDetails /></Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Layout><ProfilePage /></Layout>
+          </ProtectedRoute>
+        }
+      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

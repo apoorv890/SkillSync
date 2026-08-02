@@ -4,7 +4,7 @@ import { Briefcase, MapPin, Moon, Sun } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { useDashboardRefresh } from '../../contexts/DashboardContext';
+import { useDashboardRefresh } from '../../context/DashboardContext';
 import { UserSectionCards } from '../user-dashboard/user-section-cards';
 
 const UserDashboard = () => {

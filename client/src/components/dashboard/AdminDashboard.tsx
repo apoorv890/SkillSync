@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, Users, FileText, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
-import { useDashboardRefresh } from '../../contexts/DashboardContext';
+import { useDashboardRefresh } from '../../context/DashboardContext';
 
 const AdminDashboard = () => {
   const { refreshTrigger } = useDashboardRefresh();

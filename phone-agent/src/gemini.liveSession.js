@@ -6,14 +6,25 @@ import { getSkillsyncConfig, skillsyncFetch } from './skillsyncClient.js';
 const log = createLogger('Gemini');
 
 const SYSTEM_PROMPT = `You are an AI phone interviewer for a tech company.
-When the call connects, greet the candidate warmly, ask for their name,
-and then ask about their experience and skills in a professional manner.
+When the call connects, greet the candidate warmly by their first name (use the name
+provided in the private candidate context — do NOT ask them to identify themselves
+or confirm their name). Speak the greeting a little slower and clearly, with a brief
+natural pause after the greeting, so the candidate has time to settle in before you
+continue. Then transition into asking about their experience and skills in a
+professional manner, tailoring your first question to their background if it's
+available in the private context.
 Keep responses concise and conversational since this is a phone conversation.
 Speak naturally, one short turn at a time, and wait for the candidate to
 finish speaking before responding.
 
 You may be given private context about the job role and candidate. Do NOT proactively mention or reveal private context.
 Only reference job/candidate details if the candidate explicitly asks a related question, and then answer only what was asked.
+
+CALL LENGTH (important): This call is short by design — plan to be done in about 6-7 minutes total.
+Pace the conversation accordingly; do not dwell too long on any one question. If you receive a system
+note that time is almost up, stop what you're doing within your next turn: finish booking the interview
+if that hasn't happened yet, briefly thank the candidate, and say a warm goodbye. Do not wait for the
+candidate to end the call themselves once you've said goodbye.
 
 TIMEZONE (critical): All scheduling is in Asia/Kolkata — Indian Standard Time (IST, UTC+05:30).
 Never say "UTC", "GMT", or "Zulu". Never convert IST slots to another timezone when speaking.
@@ -69,11 +80,15 @@ const toolDeclarations = [
   {
     name: 'getInterviewSlots',
     description:
-      'Get available 60-minute interview slots in IST (Mon–Fri, 10:00–18:00). Use week=next if candidate asks for next week.',
+      'Get available 60-minute interview slots in IST (Mon–Fri, 10:00–18:00) on the calendar of the recruiter assigned to this application\'s job. Use week=next if candidate asks for next week.',
     parameters: {
       type: 'object',
       properties: {
         week: { type: 'string', enum: ['auto', 'next'], default: 'auto' },
+        applicationId: {
+          type: 'string',
+          description: 'SkillSync application id (optional if call metadata already includes it)',
+        },
       },
       required: [],
     },
@@ -127,6 +142,10 @@ export async function createLiveSession(callbacks) {
       systemInstruction: {
         parts: [{ text: SYSTEM_PROMPT }],
       },
+      // Basic transcript capture for CallSession (server/src/models/CallSession.js) —
+      // consumed in twilio.mediaStream.js's handleGeminiMessage.
+      inputAudioTranscription: {},
+      outputAudioTranscription: {},
       toolConfig: {
         functionCallingConfig: {
           mode: FunctionCallingConfigMode.AUTO,
@@ -177,8 +196,14 @@ export async function createLiveSession(callbacks) {
                     responses.push({ id, name, response: { output: data } });
                   } else if (name === 'getInterviewSlots') {
                     const week = args.week === 'next' ? 'next' : 'auto';
+                    const appId = args.applicationId || callbacks.applicationId;
+                    if (!appId || typeof appId !== 'string') {
+                      throw new Error(
+                        'Missing applicationId — call metadata did not include one; cannot check availability for this job.',
+                      );
+                    }
                     const data = await skillsyncFetch(
-                      `/api/phone-agent/calendar/availability?week=${encodeURIComponent(week)}`,
+                      `/api/phone-agent/calendar/availability?week=${encodeURIComponent(week)}&applicationId=${encodeURIComponent(appId)}`,
                       { method: 'GET' },
                     );
                     responses.push({ id, name, response: { output: data } });

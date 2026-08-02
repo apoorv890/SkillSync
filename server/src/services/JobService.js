@@ -1,4 +1,6 @@
 import Job from '../models/Job.js';
+import Application from '../models/Application.js';
+import S3Service from './S3Service.js';
 import logger from '../utils/logger.js';
 import { logCompact, logNested } from '../utils/loggerHelper.js';
 import { ApiError, HTTP_STATUS } from '../utils/http.js';
@@ -61,7 +63,7 @@ class JobService {
     }
   }
 
-  async createJob(jobData, req = null) {
+  async createJob(jobData, recruiterId = null, req = null) {
     logNested(req, 'Creating new job', { title: jobData.title });
 
     try {
@@ -86,6 +88,7 @@ class JobService {
       }
 
       const job = await Job.create({
+        recruiterId: recruiterId || null,
         title,
         location,
         workType: workType || 'Full-time',
@@ -130,17 +133,46 @@ class JobService {
     }
   }
 
+  /**
+   * Hard-deletes a job and every Application against it (and their S3 resumes),
+   * so nothing about it remains for either the admin or the applicant to see.
+   * Works regardless of the job's status. S3 cleanup is best-effort per file —
+   * one failed delete doesn't block the rest, since leaving an orphaned S3
+   * object is far less bad than aborting a user-requested deletion partway.
+   */
   async deleteJob(jobId) {
     logger.info('Deleting job', { jobId });
 
     try {
-      const job = await Job.findByIdAndDelete(jobId);
-
+      const job = await Job.findById(jobId);
       if (!job) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found');
       }
 
-      logger.info('Job deleted successfully', { jobId });
+      const applications = await Application.find({ jobId }).select('resume.s3Key').lean();
+
+      for (const application of applications) {
+        const s3Key = application.resume?.s3Key;
+        if (!s3Key) continue;
+        try {
+          await S3Service.deleteFile(s3Key);
+        } catch (error) {
+          logger.error(`Failed to delete resume from S3 while deleting job`, {
+            jobId,
+            applicationId: application._id,
+            s3Key,
+            error: error.message
+          });
+        }
+      }
+
+      await Application.deleteMany({ jobId });
+      await Job.findByIdAndDelete(jobId);
+
+      logger.info('Job and related applications deleted successfully', {
+        jobId,
+        applicationsDeleted: applications.length
+      });
     } catch (error) {
       logger.error(`Error deleting job: ${error.message}`, {
         jobId,

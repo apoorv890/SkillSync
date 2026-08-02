@@ -13,6 +13,8 @@ router.get(
   '/calls/:callSid/application-context',
   PhoneAgentController.getApplicationContextByCallSid
 );
+router.post('/calls/:callSid/start', PhoneAgentController.markCallStarted);
+router.post('/calls/:callSid/end', PhoneAgentController.markCallEnded);
 router.get('/applications/:applicationId/context', PhoneAgentController.getApplicationContext);
 router.post('/sessions/:id/events', PhoneAgentController.postEvent);
 router.post('/sessions/:id/finalize', PhoneAgentController.finalize);

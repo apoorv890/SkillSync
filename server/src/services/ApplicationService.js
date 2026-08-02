@@ -109,22 +109,22 @@ class ApplicationService {
     return ResumeAnalysisService.analyze(applicationId);
   }
 
-  async withdrawApplication(applicationId, candidateId) {
-    logger.info(`Withdrawing application`, { applicationId, candidateId });
+  async withdrawApplication(candidateId, jobId) {
+    logger.info(`Withdrawing application`, { candidateId, jobId });
 
-    const sanitizedAppId = sanitizeObjectId(applicationId);
     const sanitizedCandidateId = sanitizeObjectId(candidateId);
+    const sanitizedJobId = sanitizeObjectId(jobId);
 
-    if (!sanitizedAppId || !sanitizedCandidateId) {
+    if (!sanitizedCandidateId || !sanitizedJobId) {
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
-        'Invalid application or candidate ID'
+        'Invalid candidate or job ID'
       );
     }
 
     const application = await Application.findOne({
-      _id: sanitizedAppId,
-      userId: sanitizedCandidateId
+      userId: sanitizedCandidateId,
+      jobId: sanitizedJobId
     });
 
     if (!application) {
@@ -135,14 +135,11 @@ class ApplicationService {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Application already withdrawn');
     }
 
-    if (application.resume?.s3Key) {
-      logger.info(`Deleting resume from S3`, { s3Key: application.resume.s3Key });
-      await S3Service.deleteFile(application.resume.s3Key);
-    }
+    application.status = APPLICATION_STATUS.WITHDRAWN;
+    application.withdrawnAt = new Date();
+    await application.save();
 
-    await Application.findByIdAndDelete(sanitizedAppId);
-
-    logger.info(`Application withdrawn successfully`, { applicationId });
+    logger.info(`Application withdrawn successfully`, { applicationId: application._id });
   }
 
   async getApplicationsByCandidate(candidateId, req = null) {
@@ -254,8 +251,10 @@ class ApplicationService {
       return null;
     }
 
+    // Withdrawn applications are kept (not deleted) so createApplication can reactivate
+    // them, but the candidate should still see "Apply Now" rather than "Applied".
     return {
-      applied: true,
+      applied: application.status !== APPLICATION_STATUS.WITHDRAWN,
       status: application.status,
       appliedAt: application.appliedAt,
       withdrawnAt: application.withdrawnAt,

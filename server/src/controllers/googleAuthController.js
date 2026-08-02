@@ -1,15 +1,7 @@
-import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import TokenService from '../services/TokenService.js';
-
-function getJWTSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET is not configured');
-  }
-  return secret;
-}
+import logger from '../utils/logger.js';
 
 function getGoogleClientId() {
   const id = process.env.GOOGLE_CLIENT_ID;
@@ -89,18 +81,14 @@ export async function postGoogleAuth(req, res) {
       });
     }
 
-    const tempToken = jwt.sign(
-      { type: 'onboarding', googleId, email, fullName, picture },
-      getJWTSecret(),
-      { expiresIn: '15m' }
-    );
+    const tempToken = TokenService.generateOnboardingToken({ googleId, email, fullName, picture });
 
     return res.status(200).json({
       needsOnboarding: true,
       tempToken
     });
   } catch (err) {
-    console.error('Google auth error:', err.message || err);
+    logger.error('Google auth error:', err.message || err);
     return res.status(401).json({ error: 'Invalid Google token' });
   }
 }
@@ -119,7 +107,7 @@ export async function postOnboarding(req, res) {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, getJWTSecret());
+      decoded = TokenService.verifyToken(token);
     } catch {
       return res.status(401).json({ error: 'Invalid or expired onboarding token' });
     }
@@ -179,7 +167,7 @@ export async function postOnboarding(req, res) {
       user: formatUserResponse(user)
     });
   } catch (err) {
-    console.error('Onboarding error:', err);
+    logger.error('Onboarding error:', err);
     return res.status(500).json({ error: 'Could not complete onboarding' });
   }
 }
