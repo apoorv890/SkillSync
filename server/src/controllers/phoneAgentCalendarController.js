@@ -6,11 +6,18 @@ import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js
 import { sanitizeObjectId } from '../utils/querySanitizer.js';
 import {
   getAvailableSlots,
-  scheduleInterview
+  scheduleInterview,
+  isGoogleAuthError
 } from '../services/GoogleCalendarService.js';
 import { DateTime } from 'luxon';
 
 const IST = 'Asia/Kolkata';
+
+/** Shared with resolveRecruiterForApplication's "no usable calendar" case below —
+ *  from the candidate's perspective an invalid/expired token and a missing one
+ *  mean the same thing: this recruiter's calendar isn't usable right now. */
+const CALENDAR_UNAVAILABLE_MESSAGE =
+  "This role's recruiter hasn't connected their Google Calendar yet. Scheduling isn't available right now — someone from our team will follow up to arrange a time.";
 
 /**
  * Resolves which admin's Google Calendar to use for a given application, via
@@ -66,7 +73,7 @@ async function resolveRecruiterForApplication(applicationId) {
   throw new ApiError(
     HTTP_STATUS.BAD_REQUEST,
     job.recruiterId
-      ? "This role's recruiter hasn't connected their Google Calendar yet. Scheduling isn't available right now — someone from our team will follow up to arrange a time."
+      ? CALENDAR_UNAVAILABLE_MESSAGE
       : 'This job has no assigned recruiter and no default calendar is configured. Scheduling isn\'t available right now.'
   );
 }
@@ -102,7 +109,17 @@ class PhoneAgentCalendarController {
     }
 
     const { adminUserId } = await resolveRecruiterForApplication(applicationId);
-    const data = await getAvailableSlots({ adminUserId, week });
+
+    let data;
+    try {
+      data = await getAvailableSlots({ adminUserId, week });
+    } catch (error) {
+      if (isGoogleAuthError(error)) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, CALENDAR_UNAVAILABLE_MESSAGE);
+      }
+      throw error;
+    }
+
     return ApiResponse.success(res, 'Availability retrieved', data);
   });
 
@@ -131,14 +148,22 @@ class PhoneAgentCalendarController {
       : 'SkillSync Interview';
     const description = `Application: ${String(application._id)}`;
 
-    const event = await scheduleInterview({
-      adminUserId,
-      slotStartIso: effectiveSlotStartIso.trim(),
-      candidateEmail,
-      candidateName,
-      title,
-      description
-    });
+    let event;
+    try {
+      event = await scheduleInterview({
+        adminUserId,
+        slotStartIso: effectiveSlotStartIso.trim(),
+        candidateEmail,
+        candidateName,
+        title,
+        description
+      });
+    } catch (error) {
+      if (isGoogleAuthError(error)) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, CALENDAR_UNAVAILABLE_MESSAGE);
+      }
+      throw error;
+    }
 
     return ApiResponse.success(res, 'Interview scheduled', event, HTTP_STATUS.CREATED);
   });

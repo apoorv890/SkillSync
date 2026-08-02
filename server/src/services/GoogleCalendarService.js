@@ -68,6 +68,25 @@ async function getAuthorizedCalendarClient(adminUserId) {
   return { calendar, oauth };
 }
 
+/**
+ * True if `error` looks like a Google OAuth failure (expired/revoked refresh
+ * token, bad client credentials) rather than some other Calendar API problem
+ * (network issue, bad request, real quota limit, etc). Callers use this to
+ * turn a raw provider error like "invalid_grant" into a clear, audience-
+ * appropriate message instead of leaking Google's own error text.
+ */
+export function isGoogleAuthError(error) {
+  const msg = String(error?.message || '').toLowerCase();
+  const providerCode = error?.response?.data?.error;
+  return (
+    msg.includes('invalid_grant') ||
+    msg.includes('invalid_token') ||
+    msg.includes('invalid_client') ||
+    providerCode === 'invalid_grant' ||
+    providerCode === 'invalid_client'
+  );
+}
+
 function getWorkWeekWindow({ week = 'auto' }) {
   const now = DateTime.now().setZone(IST);
   let start = now.startOf('day');

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Briefcase, Calendar, Edit } from 'lucide-react';
+import { ArrowLeft, MapPin, Briefcase, Calendar, Edit, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
@@ -36,6 +36,7 @@ const JobDetails = () => {
   const [withdrawing, setWithdrawing] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch job details with deduplication
   const { data: jobResponse, loading } = useApi<Record<string, unknown> | { data?: Record<string, unknown> }>(
@@ -75,6 +76,34 @@ const JobDetails = () => {
   const handleEditSuccess = () => {
     // Trigger refetch of job details
     setRefetchTrigger(prev => prev + 1);
+  };
+
+  const handleDeleteJob = async () => {
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/jobs/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        toast.success('Job deleted successfully');
+        triggerDashboardRefresh();
+        navigate('/jobs');
+      } else {
+        const error = await response.json().catch(() => ({}));
+        toast.error(
+          error?.message || error?.error || 'Failed to delete job'
+        );
+        setDeleting(false);
+      }
+    } catch {
+      toast.error('Failed to delete job. Please try again.');
+      setDeleting(false);
+    }
   };
 
   const handleWithdraw = async () => {
@@ -179,17 +208,47 @@ const JobDetails = () => {
             </div>
             
             {isAdmin && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditMode(true)}
-                className="flex items-center gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Edit
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditMode(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={deleting}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {deleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this job posting?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete "{job.title}"
+                        and every application submitted for it, including uploaded resumes.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteJob}>
+                        Yes, Delete Job
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
-            
+
             {!isAdmin && job.status === 'active' && (
               <div className="flex gap-3">
                 {applicationStatus.applied ? (
