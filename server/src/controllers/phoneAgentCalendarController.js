@@ -1,6 +1,7 @@
 import Application from '../models/Application.js';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
+import logger from '../utils/logger.js';
 import { catchAsync, ApiResponse, ApiError, HTTP_STATUS } from '../utils/http.js';
 import { sanitizeObjectId } from '../utils/querySanitizer.js';
 import {
@@ -11,25 +12,63 @@ import { DateTime } from 'luxon';
 
 const IST = 'Asia/Kolkata';
 
-/** Mongo user id of the admin whose Google Calendar is connected (OAuth refresh token). */
-async function resolveCalendarAdminUserId() {
-  const explicit = (process.env.GOOGLE_CALENDAR_ADMIN_USER_ID || '').trim();
-  if (explicit) return explicit;
-
-  const admin = await User.findOne({
-    role: 'admin',
-    googleCalendarRefreshToken: { $exists: true, $nin: [null, ''] }
-  })
-    .select('_id')
-    .lean();
-
-  if (!admin?._id) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      'No admin calendar connected. Set GOOGLE_CALENDAR_ADMIN_USER_ID or connect calendar via /api/calendar/auth-url.'
-    );
+/**
+ * Resolves which admin's Google Calendar to use for a given application, via
+ * Application -> Job.recruiterId — replacing the old "first admin with a
+ * connected calendar" fallback (nondeterministic: which admin got picked
+ * depended on Mongo's default document order, not on which job/recruiter
+ * the call was actually about).
+ *
+ * Fallback (only when the job has no recruiterId, or that recruiter hasn't
+ * connected a calendar yet): GOOGLE_CALENDAR_ADMIN_USER_ID, if the operator
+ * has explicitly configured one, as a deliberate opt-in default — not an
+ * arbitrary DB lookup. If that isn't set either, this fails with a clear
+ * error rather than silently booking onto the wrong recruiter's calendar.
+ */
+async function resolveRecruiterForApplication(applicationId) {
+  const sanitizedAppId = sanitizeObjectId(applicationId);
+  if (!sanitizedAppId) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid applicationId');
   }
-  return String(admin._id);
+
+  const application = await Application.findById(sanitizedAppId).lean();
+  if (!application) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
+  }
+
+  const job = application.jobId ? await Job.findById(application.jobId).lean() : null;
+  if (!job) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Job not found for this application');
+  }
+
+  const recruiter = job.recruiterId
+    ? await User.findById(job.recruiterId).select('_id googleCalendarRefreshToken').lean()
+    : null;
+
+  if (recruiter?.googleCalendarRefreshToken) {
+    return { adminUserId: String(recruiter._id), application, job };
+  }
+
+  const fallbackId = (process.env.GOOGLE_CALENDAR_ADMIN_USER_ID || '').trim();
+  if (fallbackId) {
+    const fallbackAdmin = await User.findById(fallbackId)
+      .select('_id googleCalendarRefreshToken')
+      .lean();
+    if (fallbackAdmin?.googleCalendarRefreshToken) {
+      logger.warn(
+        `Job ${job._id} has no usable recruiter calendar (recruiterId=${job.recruiterId || 'none'}); ` +
+          `using GOOGLE_CALENDAR_ADMIN_USER_ID fallback for application ${sanitizedAppId}`
+      );
+      return { adminUserId: String(fallbackAdmin._id), application, job };
+    }
+  }
+
+  throw new ApiError(
+    HTTP_STATUS.BAD_REQUEST,
+    job.recruiterId
+      ? "This role's recruiter hasn't connected their Google Calendar yet. Scheduling isn't available right now — someone from our team will follow up to arrange a time."
+      : 'This job has no assigned recruiter and no default calendar is configured. Scheduling isn\'t available right now.'
+  );
 }
 
 class PhoneAgentCalendarController {
@@ -49,12 +88,20 @@ class PhoneAgentCalendarController {
   });
 
   /**
-   * GET /api/phone-agent/calendar/availability?week=auto|next
+   * GET /api/phone-agent/calendar/availability?week=auto|next&applicationId=...
    * Called by phone-agent with SKILLSYNC_SERVICE_TOKEN (not user JWT).
+   * applicationId is required — availability is always for a specific job's
+   * assigned recruiter, not a global calendar.
    */
   availability = catchAsync(async (req, res) => {
     const week = req.query?.week === 'next' ? 'next' : 'auto';
-    const adminUserId = await resolveCalendarAdminUserId();
+    const applicationId =
+      typeof req.query?.applicationId === 'string' ? req.query.applicationId.trim() : '';
+    if (!applicationId) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'applicationId is required');
+    }
+
+    const { adminUserId } = await resolveRecruiterForApplication(applicationId);
     const data = await getAvailableSlots({ adminUserId, week });
     return ApiResponse.success(res, 'Availability retrieved', data);
   });
@@ -66,20 +113,15 @@ class PhoneAgentCalendarController {
   schedule = catchAsync(async (req, res) => {
     const { applicationId, slotStartIso, startIso } = req.body || {};
     const effectiveSlotStartIso = slotStartIso || startIso;
-    const sanitizedAppId = sanitizeObjectId(applicationId);
-    if (!sanitizedAppId) {
-      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid applicationId');
-    }
     if (typeof effectiveSlotStartIso !== 'string' || !effectiveSlotStartIso.trim()) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'slotStartIso is required');
     }
+    if (!applicationId) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'applicationId is required');
+    }
 
-    const adminUserId = await resolveCalendarAdminUserId();
+    const { adminUserId, application, job } = await resolveRecruiterForApplication(applicationId);
 
-    const application = await Application.findById(sanitizedAppId).lean();
-    if (!application) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application not found');
-
-    const job = application.jobId ? await Job.findById(application.jobId).lean() : null;
     const user = application.userId ? await User.findById(application.userId).lean() : null;
 
     const candidateEmail = user?.email || application.candidateInfo?.email || null;

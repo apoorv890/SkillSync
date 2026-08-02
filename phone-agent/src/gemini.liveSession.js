@@ -80,11 +80,15 @@ const toolDeclarations = [
   {
     name: 'getInterviewSlots',
     description:
-      'Get available 60-minute interview slots in IST (Mon–Fri, 10:00–18:00). Use week=next if candidate asks for next week.',
+      'Get available 60-minute interview slots in IST (Mon–Fri, 10:00–18:00) on the calendar of the recruiter assigned to this application\'s job. Use week=next if candidate asks for next week.',
     parameters: {
       type: 'object',
       properties: {
         week: { type: 'string', enum: ['auto', 'next'], default: 'auto' },
+        applicationId: {
+          type: 'string',
+          description: 'SkillSync application id (optional if call metadata already includes it)',
+        },
       },
       required: [],
     },
@@ -192,8 +196,14 @@ export async function createLiveSession(callbacks) {
                     responses.push({ id, name, response: { output: data } });
                   } else if (name === 'getInterviewSlots') {
                     const week = args.week === 'next' ? 'next' : 'auto';
+                    const appId = args.applicationId || callbacks.applicationId;
+                    if (!appId || typeof appId !== 'string') {
+                      throw new Error(
+                        'Missing applicationId — call metadata did not include one; cannot check availability for this job.',
+                      );
+                    }
                     const data = await skillsyncFetch(
-                      `/api/phone-agent/calendar/availability?week=${encodeURIComponent(week)}`,
+                      `/api/phone-agent/calendar/availability?week=${encodeURIComponent(week)}&applicationId=${encodeURIComponent(appId)}`,
                       { method: 'GET' },
                     );
                     responses.push({ id, name, response: { output: data } });

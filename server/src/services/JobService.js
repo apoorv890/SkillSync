@@ -61,7 +61,7 @@ class JobService {
     }
   }
 
-  async createJob(jobData, req = null) {
+  async createJob(jobData, recruiterId = null, req = null) {
     logNested(req, 'Creating new job', { title: jobData.title });
 
     try {
@@ -86,6 +86,7 @@ class JobService {
       }
 
       const job = await Job.create({
+        recruiterId: recruiterId || null,
         title,
         location,
         workType: workType || 'Full-time',

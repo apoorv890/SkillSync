@@ -22,7 +22,7 @@ class JobController {
   });
 
   createJob = catchAsync(async (req, res) => {
-    const job = await JobService.createJob(req.body, req);
+    const job = await JobService.createJob(req.body, req.userId, req);
 
     return ApiResponse.success(
       res,
