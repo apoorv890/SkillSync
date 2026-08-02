@@ -11,6 +11,9 @@ export default {
   		}
   	},
   	extend: {
+  		fontFamily: {
+  			serif: ['"Newsreader"', 'ui-serif', 'Georgia', 'serif']
+  		},
   		colors: {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
