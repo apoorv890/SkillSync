@@ -6,7 +6,10 @@ export async function generateGeminiText(prompt, options = {}) {
     throw new Error('GEMINI_API_KEY is not set');
   }
 
-  const modelName = options.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const modelName = options.model || process.env.GEMINI_MODEL;
+  if (!modelName) {
+    throw new Error('GEMINI_MODEL is not set');
+  }
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({

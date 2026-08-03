@@ -4,8 +4,7 @@ import { ApiError, HTTP_STATUS } from '../utils/http.js';
 
 class ATSScoreService {
   constructor() {
-    this.model =
-      process.env.GEMINI_ATS_MODEL || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    this.model = process.env.GEMINI_ATS_MODEL || process.env.GEMINI_MODEL;
     this.maxRetries = 3;
 
     this.weights = {
