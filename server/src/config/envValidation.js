@@ -3,6 +3,7 @@ const requiredEnvVars = [
   'MONGODB_URI',
   'GOOGLE_CLIENT_ID',
   'GEMINI_API_KEY',
+  'GEMINI_MODEL',
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
   'AWS_S3_BUCKET_NAME'
@@ -16,7 +17,6 @@ const optionalEnvVars = {
   PORT: '5000',
   JWT_EXPIRES_IN: '7d',
   JWT_REFRESH_EXPIRES_IN: '7d',
-  GEMINI_MODEL: 'gemini-2.0-flash',
   PHONE_AGENT_BASE_URL: 'http://localhost:3010'
 };
 
